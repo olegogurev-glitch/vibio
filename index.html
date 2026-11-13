@@ -1,0 +1,1145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>VIBIO</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{--cyan:#00eaff;--blue:#288cff;--orange:#ffa028;--red:#ff4824;--bg:#010208}
+html,body{margin:0;height:100%;background:var(--bg);overflow:hidden;color:#cfefff;font-family:Rajdhani,system-ui,sans-serif;user-select:none;-webkit-user-select:none;touch-action:none}
+#c{position:fixed;inset:0;width:100%;height:100%;display:block}
+.screen{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;text-align:center;padding:16px;box-sizing:border-box;transition:opacity .45s ease;background:radial-gradient(ellipse at center,rgba(1,4,12,.35),rgba(1,2,8,.75))}
+.screen.hidden{opacity:0;pointer-events:none}
+.logo{font-family:Orbitron,sans-serif;font-weight:900;font-size:clamp(64px,15vw,176px);letter-spacing:.2em;padding-left:.2em;line-height:1;color:rgba(0,234,255,.08);-webkit-text-stroke:2px var(--cyan);text-shadow:0 0 10px rgba(0,234,255,.9),0 0 34px rgba(0,234,255,.55),0 0 90px rgba(0,140,255,.45);animation:flicker 5s infinite}
+.logo span{-webkit-text-stroke-color:var(--orange);text-shadow:0 0 10px rgba(255,160,40,.9),0 0 34px rgba(255,120,30,.55),0 0 90px rgba(255,90,20,.4)}
+@keyframes flicker{0%,18%,22%,62%,64%,100%{opacity:1}20%,63%{opacity:.55}}
+.tag{font-family:Orbitron;font-size:clamp(11px,1.6vw,15px);letter-spacing:.55em;color:#8fdcff;opacity:.85;margin-top:-6px}
+.card{position:relative;border:1px solid rgba(0,234,255,.55);padding:18px 34px 16px;min-width:min(300px,80vw);background:linear-gradient(180deg,rgba(0,30,50,.55),rgba(0,8,18,.7));box-shadow:0 0 22px rgba(0,234,255,.25),inset 0 0 22px rgba(0,234,255,.12);clip-path:polygon(14px 0,100% 0,100% calc(100% - 14px),calc(100% - 14px) 100%,0 100%,0 14px)}
+.small{font-family:Orbitron;font-size:11px;letter-spacing:.35em;color:#6fb9d6}
+.track{font-family:Orbitron;font-weight:700;font-size:clamp(24px,4vw,34px);letter-spacing:.18em;color:#fff;text-shadow:0 0 12px rgba(0,234,255,.8);margin:6px 0}
+.diff{display:flex;align-items:center;justify-content:center;gap:16px;margin:14px 0 8px}
+.diff button{background:none;border:1px solid rgba(0,234,255,.5);color:var(--cyan);width:34px;height:30px;font-size:14px;cursor:pointer;font-family:Orbitron}
+.diff button:hover{background:rgba(0,234,255,.15);box-shadow:0 0 12px rgba(0,234,255,.6)}
+#speedName{font-family:Orbitron;font-weight:700;font-size:14px;letter-spacing:.2em;width:130px;color:var(--cyan);text-shadow:0 0 10px rgba(0,234,255,.7)}
+.diff.sp{margin-top:0}
+.grade.stamp{animation:stamp .5s cubic-bezier(.2,1.5,.4,1) both}
+@keyframes stamp{0%{transform:scale(2.8);opacity:0;filter:brightness(3)}100%{transform:scale(1);opacity:1;filter:brightness(1)}}
+#hist{width:320px;height:96px;max-width:88vw}
+#diffName{font-family:Orbitron;font-weight:700;letter-spacing:.3em;width:130px;color:var(--orange);text-shadow:0 0 10px rgba(255,160,40,.8)}
+.cta{font-family:Orbitron;font-weight:700;font-size:18px;letter-spacing:.5em;padding:14px 40px 14px 48px;color:#001018;background:var(--cyan);border:none;cursor:pointer;box-shadow:0 0 18px rgba(0,234,255,.9),0 0 60px rgba(0,234,255,.45);animation:pulse 1.875s ease-in-out infinite;clip-path:polygon(12px 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%,0 12px)}
+.cta.alt{background:none;color:var(--cyan);border:1px solid var(--cyan);box-shadow:0 0 14px rgba(0,234,255,.4);animation:none}
+@keyframes pulse{0%,100%{filter:brightness(1)}50%{filter:brightness(1.35)}}
+.keys{font-size:15px;letter-spacing:.08em;color:#7fb7cc}
+kbd{display:inline-block;font-family:Orbitron;font-size:13px;min-width:22px;padding:4px 6px;margin:0 3px;border:1px solid rgba(0,234,255,.6);color:#fff;box-shadow:0 0 8px rgba(0,234,255,.4)}
+kbd.o{border-color:rgba(255,160,40,.7);box-shadow:0 0 8px rgba(255,160,40,.45)}
+.grade{font-family:Orbitron;font-weight:900;font-size:clamp(90px,16vw,150px);line-height:1;color:transparent;-webkit-text-stroke:2px var(--orange);text-shadow:0 0 18px rgba(255,160,40,.9),0 0 60px rgba(255,100,30,.6)}
+.score{font-family:Orbitron;font-weight:700;font-size:clamp(30px,5vw,44px);letter-spacing:.12em;color:#fff;text-shadow:0 0 14px rgba(0,234,255,.8)}
+.stats{display:grid;grid-template-columns:repeat(4,auto);gap:6px 26px;font-family:Orbitron;font-size:13px;letter-spacing:.15em}
+.stats b{display:block;font-size:22px;color:#fff;margin-top:4px}
+.row{display:flex;gap:14px;flex-wrap:wrap;justify-content:center}
+#pauseBtn{position:fixed;top:14px;right:14px;width:40px;height:40px;background:rgba(0,20,30,.5);border:1px solid rgba(0,234,255,.5);color:var(--cyan);font-size:16px;cursor:pointer;display:none;z-index:5}
+.newbest{font-family:Orbitron;font-size:13px;letter-spacing:.4em;color:var(--orange);text-shadow:0 0 10px rgba(255,160,40,.9);animation:flicker 1.2s infinite}
+.link{background:none;border:none;color:#7fb7cc;font-family:Orbitron;font-size:11px;letter-spacing:.3em;cursor:pointer;padding:6px}
+.link:hover{color:var(--cyan);text-shadow:0 0 8px var(--cyan)}
+.tapflash{animation:tf .25s ease-out}
+@keyframes tf{0%{transform:scale(1.18);color:var(--orange)}100%{transform:scale(1)}}
+@media (max-width:520px){.stats{grid-template-columns:repeat(2,auto)}}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<button id="pauseBtn" aria-label="Pause">❚❚</button>
+
+<div id="title" class="screen">
+  <div class="logo">VIB<span>IO</span></div>
+  <div class="tag">FEEL THE GRID · HIT THE BEAT</div>
+  <div class="card">
+    <div class="small">TRACK 01</div>
+    <div class="track">GRIDRUNNER</div>
+    <div class="small">SYNTHWAVE · 128 BPM · 1:45</div>
+    <div class="diff"><button id="dPrev">◀</button><span id="diffName">NORMAL</span><button id="dNext">▶</button></div>
+    <div class="diff sp"><button id="sPrev">◀</button><span id="speedName">SPEED 1.0×</span><button id="sNext">▶</button></div>
+    <div class="small" id="best">BEST —</div>
+  </div>
+  <button id="startBtn" class="cta">PLAY</button>
+  <div class="keys"><kbd>D</kbd><kbd>F</kbd><kbd class="o">J</kbd><kbd class="o">K</kbd>&nbsp; tap on the line · hold for long notes · <kbd>ESC</kbd> pause</div>
+  <button id="calBtn" class="link">TIMING OFFSET <span id="offVal">+0 ms</span> · CALIBRATE</button>
+</div>
+
+<div id="calib" class="screen hidden">
+  <div class="small">TIMING OFFSET</div>
+  <div class="track">CALIBRATE</div>
+  <div class="keys" style="max-width:440px">Listen to the clicks and tap <kbd>SPACE</kbd> (or the screen) exactly on each one. Use your ears, not your eyes.</div>
+  <div class="score" id="calVal">+0 ms</div>
+  <div class="small" id="calCount">0 TAPS</div>
+  <div class="small" id="calInfo" style="color:var(--orange)">GET READY</div>
+  <div class="diff"><button id="offMinus">−</button><span class="small">FINE TUNE</span><button id="offPlus">+</button></div>
+  <div class="row"><button id="calSave" class="cta">SAVE</button><button id="calAgain" class="cta alt">AGAIN</button><button id="calBack" class="cta alt">CANCEL</button></div>
+  <div class="small" style="opacity:.6">+ MEANS YOU HEAR THE MUSIC LATE (E.G. BLUETOOTH)</div>
+</div>
+
+<div id="pause" class="screen hidden">
+  <div class="track">PAUSED</div>
+  <div class="row"><button id="resumeBtn" class="cta">RESUME</button><button id="quitBtn" class="cta alt">QUIT</button></div>
+</div>
+
+<div id="results" class="screen hidden">
+  <div class="small">GRIDRUNNER · <span id="rDiff"></span></div>
+  <div class="grade" id="rGrade">S</div>
+  <div class="score" id="rScore">0</div>
+  <div id="rBest" class="newbest" style="display:none">NEW BEST</div>
+  <div class="stats">
+    <div style="color:#b4ffff">PERFECT<b id="rP">0</b></div>
+    <div style="color:#50aaff">GREAT<b id="rG">0</b></div>
+    <div style="color:#ffaa3c">GOOD<b id="rO">0</b></div>
+    <div style="color:#ff5a46">MISS<b id="rM">0</b></div>
+    <div>ACCURACY<b id="rA">0%</b></div>
+    <div>MAX COMBO<b id="rC">0</b></div>
+  </div>
+  <canvas id="hist"></canvas>
+  <div class="small" id="rAvg"></div>
+  <button id="rApply" class="link" style="display:none"></button>
+  <div class="row"><button id="retryBtn" class="cta">RETRY</button><button id="menuBtn" class="cta alt">MENU</button></div>
+  <div class="keys"><kbd>SPACE</kbd> retry · <kbd>ESC</kbd> menu</div>
+</div>
+
+<script>
+'use strict';
+/* =========================================================
+   SONG DEFINITION — "GRIDRUNNER", synthesized in-browser
+   ========================================================= */
+const BPM = 128, SPB = 60 / BPM, BAR = SPB * 4, BARS = 56;
+const CH = [ // Am - F - C - G
+  { root: 45, pad: [57, 60, 64], lane: 0 },
+  { root: 41, pad: [53, 57, 60], lane: 1 },
+  { root: 48, pad: [55, 60, 64], lane: 2 },
+  { root: 43, pad: [55, 59, 62], lane: 3 },
+];
+const secOf = b => b < 4 ? 'intro' : b < 12 ? 'build' : b < 28 ? 'drop' : b < 36 ? 'break' : b < 52 ? 'drop2' : 'outro';
+// [beat, durationBeats, midi]
+const PA = [[0,.5,76],[.5,.5,74],[1,.5,72],[1.5,.5,74],[2,1.5,76],[3.5,.5,72],
+            [4,.5,72],[4.5,.5,69],[5,.5,72],[5.5,.5,74],[6,2,77],
+            [8,.5,76],[8.5,.5,74],[9,.5,72],[9.5,.5,76],[10,1.5,79],[11.5,.5,76],
+            [12,.5,74],[12.5,.5,71],[13,.5,74],[13.5,.5,76],[14,2,74]];
+const PB = [[0,.5,81],[.5,.5,79],[1,.5,76],[1.5,.5,79],[2,1.5,81],[3.5,.5,79],
+            [4,.5,77],[4.5,.5,76],[5,.5,72],[5.5,.5,76],[6,2,77],
+            [8,.5,79],[8.5,.5,76],[9,.5,72],[9.5,.5,76],[10,1,79],[11,1,76],
+            [12,.5,74],[12.5,.5,76],[13,.5,74],[13.5,.5,71],[14,2,69]];
+const BRK = [[76,72],[77,72],[79,76],[74,71]];
+const pitchLane = m => m <= 71 ? 0 : m <= 74 ? 1 : m <= 77 ? 2 : 3;
+
+const EV = [], CHART = [];
+const at = (beat, fn) => EV.push({ t: beat * SPB, fn });
+const note = (beat, lane, dur = 0, easy = true) => CHART.push({ beat, lane, dur, easy });
+
+function buildSong() {
+  for (let b = 0; b < BARS; b++) {
+    const B = b * 4, c = CH[b % 4], s = secOf(b);
+    const drop = s === 'drop' || s === 'drop2';
+    // pads
+    const padV = { intro: .5, build: .4, drop: .22, break: .55, drop2: .22, outro: .5 }[s];
+    if (b < 54) at(B, T => A.pad(T, c.pad, BAR, padV));
+    if (b === 54) at(B, T => A.pad(T, [57, 60, 64, 69], BAR * 2, .55));
+    // drums
+    const kickOn = s === 'build' || drop || (s === 'outro' && b < 54);
+    if (kickOn) for (let i = 0; i < 4; i++) at(B + i, T => A.kick(T));
+    if (b === 54) at(B, T => { A.kick(T); A.crash(T); });
+    if (drop || (s === 'build' && b >= 8 && b < 10)) { at(B + 1, T => A.clap(T)); at(B + 3, T => A.clap(T)); }
+    if (b === 10) for (let i = 0; i < 8; i++) at(B + i * .5, T => A.snare(T, .2 + i * .03));
+    if (b === 11) for (let i = 0; i < 16; i++) at(B + i * .25, T => A.snare(T, .3 + i * .025));
+    if (b === 10 || b === 34) at(B, T => A.riser(T, BAR * 2));
+    if (b === 12 || b === 36 || b === 52) at(B, T => A.crash(T));
+    if (drop) for (let i = 0; i < 16; i++) at(B + i * .25, T => A.hat(T, i % 4 === 2 ? .2 : i % 2 ? .07 : .04));
+    else if (s === 'build' || (s === 'outro' && b < 54) || (s === 'intro' && b >= 2)) for (let i = 0; i < 4; i++) at(B + i + .5, T => A.hat(T, .13));
+    // bass
+    if (s === 'build' || (s === 'outro' && b < 54)) for (let i = 0; i < 4; i++) at(B + i, T => A.bass(T, c.root, SPB * .5, .42));
+    if (drop) for (let i = 0; i < 8; i++) { const m = c.root + (i === 7 ? 12 : 0); at(B + i * .5, T => A.bass(T, m, SPB * .45, i % 2 ? .5 : .36)); }
+    if (s === 'break') at(B, T => A.sub(T, c.root, BAR));
+    if (b === 54) at(B, T => A.sub(T, 33, BAR * 2));
+    // arp
+    if (s === 'build' || s === 'break' || s === 'drop2') {
+      for (let i = 0; i < 16; i++) {
+        const m = c.pad[i % 3] + 12 + (i % 6 >= 3 ? 12 : 0);
+        const cut = s === 'build' ? 450 + ((b - 4 + i / 16) / 8) * 3600 : s === 'break' ? 1700 : 2600;
+        const v = s === 'drop2' ? .05 : .09;
+        at(B + i * .25, T => A.arp(T, m, cut, v));
+      }
+    }
+    // ---- chart for non-melody sections ----
+    const L = c.lane, pat = [L, (L + 2) % 4, (L + 1) % 4, (L + 3) % 4];
+    if (s === 'intro' || b === 28 || b === 29) note(B, L, 3);
+    if ((s === 'build' && b < 10) || (s === 'outro' && b < 54)) for (let i = 0; i < 4; i++) note(B + i, pat[i], 0, i % 2 === 0);
+    if (b === 10) [1, 2, 1, 2, 0, 3, 0, 3].forEach((l, i) => note(B + i * .5, l, 0, i % 2 === 0));
+    if (b === 11) [0, 1, 2, 3, 3, 2, 1, 0].forEach((l, i) => note(B + i * .5, l, 0, i % 2 === 0));
+    if (b >= 30 && b < 36) BRK[b % 4].forEach((m, i) => {
+      at(B + i * 2, T => A.lead(T, m, SPB * 1.9, .15));
+      note(B + i * 2, pitchLane(m), 1.5);
+    });
+    if (b === 54) { note(B, 1, 3.5); note(B, 2, 3.5); }
+  }
+  // melodies
+  const phrase = (startBar, ph, doubles) => ph.forEach(([bt, d, m], idx) => {
+    const beat = startBar * 4 + bt;
+    at(beat, T => A.lead(T, m, d * SPB * .92));
+    note(beat, pitchLane(m), d >= 1 ? d - .25 : 0, d >= 1 || bt % 1 === 0);
+    if (doubles && idx === 0) note(beat, (pitchLane(m) + 2) % 4, 0, false);
+  });
+  for (let p = 0; p < 4; p++) phrase(12 + p * 4, p % 2 ? PB : PA, false);
+  for (let p = 0; p < 4; p++) phrase(36 + p * 4, p % 2 ? PB : PA, true);
+  EV.sort((a, b) => a.t - b.t);
+}
+
+/* =========================================================
+   AUDIO ENGINE
+   ========================================================= */
+const A = {
+  ctx: null, comp: null, analyser: null, noise: null, ir: null,
+  bus: null, duck: null, rev: null, dly: null,
+  init() {
+    const ctx = this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    this.comp = ctx.createDynamicsCompressor();
+    this.comp.threshold.value = -16; this.comp.ratio.value = 4; this.comp.attack.value = .004; this.comp.release.value = .18;
+    this.analyser = ctx.createAnalyser(); this.analyser.fftSize = 256; this.analyser.smoothingTimeConstant = .78;
+    this.comp.connect(this.analyser); this.analyser.connect(ctx.destination);
+    const n = ctx.sampleRate * 2, nb = ctx.createBuffer(1, n, ctx.sampleRate), d = nb.getChannelData(0);
+    for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+    this.noise = nb;
+    const len = ctx.sampleRate * 2.8, ir = ctx.createBuffer(2, len, ctx.sampleRate);
+    for (let ch = 0; ch < 2; ch++) { const x = ir.getChannelData(ch); for (let i = 0; i < len; i++) x[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3.2); }
+    this.ir = ir;
+    this.freqData = new Uint8Array(this.analyser.frequencyBinCount);
+  },
+  newRun() { // fresh graph per run so a restart can silence everything already scheduled
+    const ctx = this.ctx;
+    if (this.bus) {
+      const old = this.bus, om = this.muff, os = this.shimSrc;
+      old.gain.cancelScheduledValues(ctx.currentTime); old.gain.setTargetAtTime(0, ctx.currentTime, .03);
+      setTimeout(() => { old.disconnect(); om.disconnect(); try { os.stop(); } catch (e) { } }, 400);
+    }
+    // master lowpass ("muffle" on miss) -> compressor
+    const muff = this.muff = this.filt('lowpass', 20000, .8); muff.connect(this.comp);
+    const bus = this.bus = ctx.createGain(); bus.gain.value = .75; bus.connect(muff);
+    // lead goes through a shelf that opens up while you hold a note
+    const shelf = this.shelf = ctx.createBiquadFilter(); shelf.type = 'highshelf'; shelf.frequency.value = 2500; shelf.gain.value = 0;
+    this.leadBus = this.gain(1); this.leadBus.connect(shelf); shelf.connect(bus);
+    // hold shimmer: quiet airy noise layer, silent until a hold is active
+    const sh = this.shimSrc = ctx.createBufferSource(); sh.buffer = this.noise; sh.loop = true;
+    const shf = this.filt('bandpass', 7000, 3); this.shimmer = this.gain(0); sh.connect(shf); shf.connect(this.shimmer); this.shimmer.connect(bus); sh.start();
+    const duck = this.duck = ctx.createGain(); duck.connect(bus);
+    const conv = ctx.createConvolver(); conv.buffer = this.ir;
+    const rev = this.rev = ctx.createGain(); const rOut = ctx.createGain(); rOut.gain.value = .32;
+    rev.connect(conv); conv.connect(rOut); rOut.connect(bus);
+    const dly = this.dly = ctx.createGain(); const dl = ctx.createDelay(2); dl.delayTime.value = SPB * .75;
+    const fb = ctx.createGain(); fb.gain.value = .36; const lp = ctx.createBiquadFilter(); lp.frequency.value = 2400;
+    const dOut = ctx.createGain(); dOut.gain.value = .28;
+    dly.connect(dl); dl.connect(lp); lp.connect(fb); fb.connect(dl); lp.connect(dOut); dOut.connect(bus); dOut.connect(rev);
+  },
+  fadeOut(sec) { const g = this.bus.gain, t = this.ctx.currentTime; g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.linearRampToValueAtTime(0, t + sec); },
+  mtof: m => 440 * Math.pow(2, (m - 69) / 12),
+  osc(type, f, t, end, det = 0) { const o = this.ctx.createOscillator(); o.type = type; o.frequency.value = f; o.detune.value = det; o.start(t); o.stop(end); return o; },
+  gain(v = 1) { const g = this.ctx.createGain(); g.gain.value = v; return g; },
+  filt(type, f, q = 1) { const x = this.ctx.createBiquadFilter(); x.type = type; x.frequency.value = f; x.Q.value = q; return x; },
+  kick(t, v = 1) {
+    const o = this.osc('sine', 170, t, t + .45), g = this.gain(0);
+    o.frequency.setValueAtTime(170, t); o.frequency.exponentialRampToValueAtTime(42, t + .13);
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(v, t + .004); g.gain.exponentialRampToValueAtTime(.001, t + .42);
+    o.connect(g); g.connect(this.bus);
+    const dg = this.duck.gain; dg.setValueAtTime(1, t); dg.linearRampToValueAtTime(.3, t + .012); dg.linearRampToValueAtTime(1, t + .26);
+  },
+  nz(t, dur, type, f, q, v, sends = []) {
+    const s = this.ctx.createBufferSource(); s.buffer = this.noise;
+    const fl = this.filt(type, f, q), g = this.gain(0);
+    g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(.001, t + dur);
+    s.connect(fl); fl.connect(g); g.connect(this.bus); sends.forEach(x => g.connect(x));
+    s.start(t, Math.random()); s.stop(t + dur + .05); return { s, fl, g };
+  },
+  clap(t) { this.nz(t, .2, 'bandpass', 1500, .9, .6, [this.rev]); this.nz(t + .012, .05, 'bandpass', 1100, 1, .4); },
+  snare(t, v) { this.nz(t, .14, 'bandpass', 1800, .7, v, [this.rev]); },
+  hat(t, v) { this.nz(t, .045, 'highpass', 8000, .5, v); },
+  crash(t) { this.nz(t, 2.2, 'highpass', 4500, .3, .3, [this.rev]); },
+  riser(t, dur) {
+    const { fl, g } = this.nz(t, dur + .1, 'bandpass', 300, 2, .001, [this.rev]);
+    fl.frequency.setValueAtTime(300, t); fl.frequency.exponentialRampToValueAtTime(9000, t + dur);
+    g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(.001, t); g.gain.exponentialRampToValueAtTime(.35, t + dur * .97); g.gain.linearRampToValueAtTime(0, t + dur);
+  },
+  bass(t, m, dur, v) {
+    const end = t + dur + .03, f = this.filt('lowpass', 1600, 6), g = this.gain(0), sub = this.gain(.45);
+    f.frequency.setValueAtTime(1700, t); f.frequency.exponentialRampToValueAtTime(220, t + Math.min(dur, .3));
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(v, t + .008); g.gain.setValueAtTime(v, t + dur * .8); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    this.osc('sawtooth', this.mtof(m), t, end).connect(f);
+    this.osc('square', this.mtof(m - 12), t, end).connect(sub); sub.connect(f);
+    f.connect(g); g.connect(this.duck);
+  },
+  sub(t, m, dur) {
+    const g = this.gain(0); g.gain.setValueAtTime(.0001, t); g.gain.linearRampToValueAtTime(.4, t + .3); g.gain.setValueAtTime(.4, t + dur - .3); g.gain.linearRampToValueAtTime(.0001, t + dur);
+    this.osc('sine', this.mtof(m), t, t + dur + .05).connect(g); g.connect(this.duck);
+  },
+  lead(t, m, dur, v = .2) {
+    const rel = .14, end = t + dur + rel + .05, f = this.filt('lowpass', 5000, 3), g = this.gain(0);
+    f.frequency.setValueAtTime(5200, t); f.frequency.exponentialRampToValueAtTime(1900, t + .25);
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(v, t + .01); g.gain.exponentialRampToValueAtTime(v * .7, t + .15);
+    g.gain.setValueAtTime(v * .7, t + Math.max(dur, .16)); g.gain.exponentialRampToValueAtTime(.0001, t + dur + rel);
+    const oscs = [this.osc('sawtooth', this.mtof(m), t, end, -9), this.osc('sawtooth', this.mtof(m), t, end, 9)];
+    const sq = this.osc('square', this.mtof(m - 12), t, end), sg = this.gain(.28); sq.connect(sg); sg.connect(f);
+    oscs.forEach(o => o.connect(f));
+    if (dur > .4) {
+      const lfo = this.osc('sine', 5.6, t, end), lg = this.gain(0);
+      lg.gain.setValueAtTime(0, t + .15); lg.gain.linearRampToValueAtTime(22, t + dur);
+      lfo.connect(lg); oscs.forEach(o => lg.connect(o.detune));
+    }
+    const rs = this.gain(.3);
+    f.connect(g); g.connect(this.leadBus); g.connect(this.dly); g.connect(rs); rs.connect(this.rev);
+  },
+  pad(t, notes, dur, v) {
+    const f = this.filt('lowpass', 1400, .7), g = this.gain(0), rs = this.gain(.6), end = t + dur + .75;
+    g.gain.setValueAtTime(.0001, t); g.gain.linearRampToValueAtTime(v, t + .5); g.gain.setValueAtTime(v, t + dur - .1); g.gain.linearRampToValueAtTime(.0001, t + dur + .65);
+    const k = 1 / (notes.length * 3);
+    notes.forEach(m => [-11, 0, 11].forEach(det => { const og = this.gain(k); this.osc('sawtooth', this.mtof(m), t, end, det).connect(og); og.connect(f); }));
+    f.connect(g); g.connect(this.duck); g.connect(rs); rs.connect(this.rev);
+  },
+  arp(t, m, cut, v) {
+    const f = this.filt('lowpass', cut, 4), g = this.gain(0);
+    g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(.001, t + .14);
+    this.osc('square', this.mtof(m), t, t + .16).connect(f); f.connect(g); g.connect(this.duck); g.connect(this.dly);
+  },
+  // ---- reactive layer ----
+  missDip() {
+    const f = this.muff.frequency, t = this.ctx.currentTime;
+    f.cancelScheduledValues(t); f.setValueAtTime(Math.max(400, f.value), t);
+    f.exponentialRampToValueAtTime(450, t + .025); f.exponentialRampToValueAtTime(20000, t + .55);
+  },
+  holdOn(on) {
+    const t = this.ctx.currentTime;
+    this.shelf.gain.setTargetAtTime(on ? 10 : 0, t, on ? .04 : .12);
+    this.shimmer.gain.setTargetAtTime(on ? .05 : 0, t, .05);
+  },
+  whoosh(up) {
+    const t = this.ctx.currentTime, a = up ? 400 : 7000, b = up ? 9000 : 180;
+    const { fl, g } = this.nz(t, .7, 'bandpass', a, 3, .001, [this.rev]);
+    fl.frequency.setValueAtTime(a, t); fl.frequency.exponentialRampToValueAtTime(b, t + .55);
+    g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(.001, t); g.gain.exponentialRampToValueAtTime(.45, t + .4); g.gain.exponentialRampToValueAtTime(.001, t + .7);
+  },
+  powerDown() {
+    const t = this.ctx.currentTime, o = this.osc('sawtooth', 520, t, t + .75), f = this.filt('lowpass', 3500, 5), g = this.gain(0);
+    o.frequency.exponentialRampToValueAtTime(38, t + .65); f.frequency.exponentialRampToValueAtTime(160, t + .65);
+    g.gain.setValueAtTime(.2, t); g.gain.exponentialRampToValueAtTime(.001, t + .7);
+    o.connect(f); f.connect(g); g.connect(this.bus); this.whoosh(false);
+  },
+  stamp() { // grade lands: deep thump straight into the master (the song bus is fading out)
+    const t = this.ctx.currentTime, o = this.osc('sine', 130, t, t + .5), g = this.gain(0);
+    o.frequency.exponentialRampToValueAtTime(38, t + .3);
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.7, t + .005); g.gain.exponentialRampToValueAtTime(.001, t + .45);
+    o.connect(g); g.connect(this.comp);
+    const s = this.ctx.createBufferSource(); s.buffer = this.noise; const f = this.filt('highpass', 3000, .5), ng = this.gain(0);
+    ng.gain.setValueAtTime(.25, t); ng.gain.exponentialRampToValueAtTime(.001, t + .25); s.connect(f); f.connect(ng); ng.connect(this.comp); s.start(t); s.stop(t + .3);
+  },
+  click(t, accent) {
+    const o = this.osc('sine', accent ? 1760 : 1320, t, t + .06), g = this.gain(0);
+    g.gain.setValueAtTime(.55, t); g.gain.exponentialRampToValueAtTime(.001, t + .05); o.connect(g); g.connect(this.bus);
+  },
+};
+
+/* =========================================================
+   GAME STATE
+   ========================================================= */
+const WIN = { perfect: .045, great: .09, good: .135 };
+const LEAD_IN = 2.4, K = 3.6, BASE_LOOK = 1.55;
+let speed = 1; try { speed = Math.min(2, Math.max(.6, +localStorage.getItem('vibio.speed') || 1)); } catch (e) { }
+let LOOK = BASE_LOOK / speed; // seconds a note is visible before the hit line
+function setSpeed(dv) {
+  speed = Math.min(2, Math.max(.6, Math.round((speed + dv) * 10) / 10)); LOOK = BASE_LOOK / speed;
+  try { localStorage.setItem('vibio.speed', String(speed)); } catch (e) { }
+  refreshTitle();
+}
+const LC = [[0, 234, 255], [40, 140, 255], [255, 160, 40], [255, 72, 36]];
+const KEYLBL = ['D', 'F', 'J', 'K'];
+const KEYMAP = { KeyD: 0, KeyF: 1, KeyJ: 2, KeyK: 3 };
+const DIFFS = ['EASY', 'NORMAL'];
+let diffIdx = 1;
+let state = 'title';
+let startTime = 0, latency = 0, evIdx = 0, lastEnd = 0;
+let notes = [], laneNotes = [[], [], [], []], lanePtr = [0, 0, 0, 0], activeHold = [null, null, null, null];
+let held = [false, false, false, false], pressFx = [0, 0, 0, 0], flashFx = [0, 0, 0, 0];
+let resolved = 0, score = 0, combo = 0, maxCombo = 0, accSum = 0, judgeable = 0, counts = { p: 0, g: 0, o: 0, m: 0 };
+let judgeText = null, particles = [], rings = [], cycles = [], lastBar = -99, dropFlash = 0, shake = 0;
+let chords = [], allHits = [], resAvgMs = 0;
+let fever = false, feverT = 0, banner = null, hitLog = [], punch = 0, dropBoost = 0, flare = 0, powerFx = 0, palT = 0;
+let userOffset = 0; try { userOffset = +localStorage.getItem('vibio.offset') || 0; } catch (e) { }
+const CYAN = [0, 215, 255], ORANGE = [255, 140, 40], WHITE = [255, 255, 255];
+const mix = (a, b, k) => a.map((v, i) => Math.round(v + (b[i] - v) * k));
+let P = CYAN.slice(), S = ORANGE.slice(); // world palette (primary / secondary), swaps in drop 2
+const evLag = e => clamp((performance.now() - e.timeStamp) / 1000, 0, .1);
+
+const rgba = (c, a) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
+const clamp = (x, a, b) => x < a ? a : x > b ? b : x;
+
+function loadBest(d) { try { return JSON.parse(localStorage.getItem('vibio.best.' + d)) || null; } catch (e) { return null; } }
+function saveBest(d, v) { try { localStorage.setItem('vibio.best.' + d, JSON.stringify(v)); } catch (e) { } }
+function refreshTitle() {
+  const d = DIFFS[diffIdx]; $('diffName').textContent = d;
+  const b = loadBest(d); $('best').textContent = b ? `BEST ${b.score.toLocaleString()} · ${b.grade} · ${b.acc}%` : 'BEST —';
+  $('offVal').textContent = fmtOff(userOffset);
+  $('speedName').textContent = 'SPEED ' + speed.toFixed(1) + '×';
+}
+const $ = id => document.getElementById(id);
+function show(id) { ['title', 'pause', 'results', 'calib'].forEach(s => $(s).classList.toggle('hidden', s !== id)); $('pauseBtn').style.display = id ? 'none' : 'block'; }
+
+function startGame() {
+  if (!A.ctx) A.init();
+  A.ctx.resume();
+  A.newRun();
+  latency = (A.ctx.baseLatency || 0) + (A.ctx.outputLatency || 0);
+  const easy = DIFFS[diffIdx] === 'EASY';
+  const src = CHART.filter(n => !easy || n.easy).map(n => ({ t: n.beat * SPB, endT: (n.beat + n.dur) * SPB, lane: n.lane, hold: n.dur > 0 }))
+    .sort((a, b) => a.t - b.t || a.lane - b.lane);
+  const busy = [-9, -9, -9, -9];
+  notes = []; laneNotes = [[], [], [], []];
+  for (const n of src) { if (n.t < busy[n.lane] + .09) continue; busy[n.lane] = n.endT; notes.push(n); laneNotes[n.lane].push(n); }
+  lastEnd = Math.max(...notes.map(n => n.endT));
+  chords = []; // notes struck together (notes are sorted by time)
+  for (let i = 0; i < notes.length; i++) for (let j = i + 1; j < notes.length && notes[j].t - notes[i].t < .002; j++) chords.push({ a: notes[i], b: notes[j] });
+  judgeable = notes.reduce((s, n) => s + (n.hold ? 2 : 1), 0);
+  lanePtr = [0, 0, 0, 0]; activeHold = [null, null, null, null]; held = [false, false, false, false];
+  resolved = 0; score = 0; combo = 0; maxCombo = 0; accSum = 0; counts = { p: 0, g: 0, o: 0, m: 0 };
+  judgeText = null; particles = []; rings = []; cycles = []; lastBar = -99;
+  fever = false; feverT = 0; banner = null; hitLog = []; allHits = []; punch = dropBoost = flare = powerFx = palT = 0;
+  if (document.activeElement) document.activeElement.blur(); // so SPACE can't re-trigger a hidden button
+  evIdx = 0; startTime = A.ctx.currentTime + LEAD_IN;
+  state = 'play'; show(null);
+}
+const songTime = () => A.ctx.currentTime - startTime - latency - userOffset / 1000;
+
+function schedule() {
+  if (state !== 'play' || !A.ctx) return;
+  const now = A.ctx.currentTime, horizon = now + .3;
+  while (evIdx < EV.length && startTime + EV[evIdx].t < horizon) { const e = EV[evIdx++]; e.fn(Math.max(now, startTime + e.t)); }
+}
+setInterval(schedule, 25);
+
+function pause() { if (state !== 'play') return; state = 'pause'; A.ctx.suspend(); show('pause'); }
+function resume() { if (state !== 'pause') return; A.ctx.resume(); state = 'play'; show(null); }
+function quit() { if (A.bus) A.fadeOut(.3); if (A.ctx && A.ctx.state === 'suspended') A.ctx.resume(); state = 'title'; refreshTitle(); show('title'); }
+
+function finish() {
+  state = 'results'; A.fadeOut(2.5); fever = false;
+  const acc = judgeable ? accSum / judgeable * 100 : 0, accR = Math.round(acc * 10) / 10;
+  const grade = acc >= 95 ? 'S' : acc >= 90 ? 'A' : acc >= 80 ? 'B' : acc >= 70 ? 'C' : 'D';
+  score = Math.round(score);
+  $('rDiff').textContent = DIFFS[diffIdx];
+  animateResults({ score, p: counts.p, g: counts.g, o: counts.o, m: counts.m, acc: accR, mc: maxCombo }, grade);
+  drawHist(allHits);
+  const best = loadBest(DIFFS[diffIdx]), isBest = !best || score > best.score;
+  if (isBest) saveBest(DIFFS[diffIdx], { score, grade, acc: accR });
+  $('rBest').style.display = isBest ? 'block' : 'none';
+  show('results');
+}
+
+/* ---------- results presentation ---------- */
+function animateResults(v, grade) {
+  const gEl = $('rGrade'); gEl.classList.remove('stamp'); gEl.style.opacity = 0; gEl.textContent = grade;
+  const fields = [['rScore', v.score, x => Math.round(x).toLocaleString()], ['rP', v.p], ['rG', v.g], ['rO', v.o], ['rM', v.m], ['rA', v.acc, x => x.toFixed(1) + '%'], ['rC', v.mc]];
+  const t0 = performance.now(), dur = 1300;
+  const step = now => {
+    if (state !== 'results') return;
+    const k = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - k, 3);
+    for (const [id, val, f] of fields) $(id).textContent = (f || (x => Math.round(x)))(val * e);
+    if (k < 1) requestAnimationFrame(step);
+    else { void gEl.offsetWidth; gEl.style.opacity = ''; gEl.classList.add('stamp'); A.stamp(); shake = 8; }
+  };
+  requestAnimationFrame(step);
+}
+function drawHist(hits) {
+  const c = $('hist'), dpr = Math.min(2, devicePixelRatio || 1), w = 320, h = 96, x = c.getContext('2d');
+  c.width = w * dpr; c.height = h * dpr; x.setTransform(dpr, 0, 0, dpr, 0, 0); x.clearRect(0, 0, w, h);
+  const N = 27, bins = new Array(N).fill(0), base = h - 16, bw = w / N;
+  for (const d of hits) bins[clamp(Math.floor((d + WIN.good) / (2 * WIN.good) * N), 0, N - 1)]++;
+  const mx = Math.max(1, ...bins);
+  x.fillStyle = 'rgba(0,234,255,.15)'; x.fillRect(0, base, w, 1);
+  bins.forEach((v, i) => {
+    const ad = Math.abs(-WIN.good + (i + .5) * (2 * WIN.good / N));
+    const col = ad <= WIN.perfect ? [0, 234, 255] : ad <= WIN.great ? [60, 150, 255] : [255, 160, 40];
+    const bh = v / mx * (base - 8);
+    x.shadowColor = rgba(col, .8); x.shadowBlur = 8; x.fillStyle = rgba(col, .85); x.fillRect(i * bw + 1, base - bh, bw - 2, bh);
+  });
+  x.shadowBlur = 0; x.fillStyle = 'rgba(255,255,255,.5)'; x.fillRect(w / 2 - .5, 2, 1, base - 2);
+  const avg = hits.length ? hits.reduce((a, b) => a + b, 0) / hits.length : 0;
+  resAvgMs = Math.round(avg * 1000);
+  if (hits.length) { // average marker
+    const ax = w / 2 + clamp(avg / WIN.good, -1, 1) * w / 2;
+    x.fillStyle = '#ffb24a'; x.beginPath(); x.moveTo(ax, base + 2); x.lineTo(ax - 5, base + 9); x.lineTo(ax + 5, base + 9); x.fill();
+  }
+  x.font = '500 9px Orbitron, sans-serif'; x.fillStyle = 'rgba(140,200,230,.6)'; x.textBaseline = 'bottom';
+  x.textAlign = 'left'; x.fillText('EARLY', 0, h); x.textAlign = 'right'; x.fillText('LATE', w, h);
+  const off = Math.abs(resAvgMs) >= 10 && hits.length >= 20;
+  const verdict = hits.length < 20 ? '' : ' · ' + (!off ? 'RIGHT ON THE BEAT' : resAvgMs > 0 ? 'YOU HIT A LITTLE LATE' : 'YOU HIT A LITTLE EARLY');
+  $('rAvg').textContent = hits.length ? `AVERAGE ${fmtOff(resAvgMs)}${verdict}` : '';
+  const btn = $('rApply'); btn.disabled = false; btn.style.display = off ? '' : 'none';
+  btn.textContent = `ADJUST TIMING OFFSET BY ${fmtOff(resAvgMs)}`;
+}
+
+/* ---------- calibration ---------- */
+let cal = null;
+const fmtOff = v => (v > 0 ? '+' : '') + v + ' ms';
+function startCalib(again) {
+  if (document.activeElement) document.activeElement.blur();
+  if (!A.ctx) A.init();
+  A.ctx.resume(); A.newRun();
+  latency = (A.ctx.baseLatency || 0) + (A.ctx.outputLatency || 0);
+  const t0 = A.ctx.currentTime + 1.2, clicks = [];
+  for (let i = 0; i < 24; i++) { const t = t0 + i * SPB; clicks.push(t); A.click(t, i % 4 === 0); }
+  cal = { clicks, taps: [], prev: again && cal ? cal.prev : userOffset, done: false };
+  state = 'calib'; show('calib');
+  $('calInfo').textContent = 'LISTEN · TAP ON EVERY CLICK'; $('calVal').textContent = fmtOff(userOffset); $('calCount').textContent = '0 TAPS';
+}
+function calTap(lag) {
+  if (!cal || cal.done) return;
+  const tc = A.ctx.currentTime - lag - latency;
+  let best = Infinity; for (const c of cal.clicks) { const d = tc - c; if (Math.abs(d) < Math.abs(best)) best = d; }
+  if (Math.abs(best) > SPB * .45) return;
+  cal.taps.push(best);
+  const use = cal.taps.slice(2); // first taps are warm-up
+  if (use.length >= 2) { const s = use.slice().sort((a, b) => a - b); userOffset = Math.round(s[s.length >> 1] * 1000); }
+  const el = $('calVal'); el.textContent = fmtOff(userOffset); el.classList.remove('tapflash'); void el.offsetWidth; el.classList.add('tapflash');
+  $('calCount').textContent = cal.taps.length + ' TAPS';
+}
+function calTick() {
+  if (cal && !cal.done && A.ctx.currentTime > cal.clicks[cal.clicks.length - 1] + .6) {
+    cal.done = true; $('calInfo').textContent = cal.taps.length >= 6 ? 'DONE · SAVE OR GO AGAIN' : 'TOO FEW TAPS · GO AGAIN';
+  }
+}
+function calNudge(dv) { userOffset = clamp(userOffset + dv, -300, 300); $('calVal').textContent = fmtOff(userOffset); }
+function calExit(save) {
+  if (save) { try { localStorage.setItem('vibio.offset', String(userOffset)); } catch (e) { } }
+  else if (cal) userOffset = cal.prev;
+  if (A.bus) A.fadeOut(.2);
+  cal = null; state = 'title'; refreshTitle(); show('title');
+}
+
+/* ---------- judging ---------- */
+const mult = () => 1 + Math.min(3, Math.floor(combo / 12));
+function comboUp() {
+  combo++; maxCombo = Math.max(maxCombo, combo);
+  if (!fever && mult() === 4) enterFever();
+  else if (combo % 50 === 0) { A.whoosh(true); banner = { text: combo + ' COMBO', col: [0, 234, 255], t: performance.now() }; }
+}
+function enterFever() {
+  fever = true; flare = Math.max(flare, .8); shake = Math.max(shake, 6); A.whoosh(true);
+  banner = { text: 'FEVER ×4', col: [255, 170, 60], t: performance.now() };
+  for (let l = 0; l < 4; l++) hitFx(l, 1);
+}
+function exitFever() { fever = false; powerFx = 1; shake = Math.max(shake, 12); A.powerDown(); }
+function addJudge(kind, diff) {
+  const map = { PERFECT: [300, 1, 'p', [120, 225, 245]], GREAT: [200, .7, 'g', [80, 170, 255]], GOOD: [100, .4, 'o', [255, 170, 60]], MISS: [0, 0, 'm', [255, 70, 60]] };
+  const [pts, acc, key, col] = map[kind];
+  counts[key]++; resolved++;
+  if (kind === 'MISS') { if (fever) exitFever(); combo = 0; shake = Math.max(shake, 4); A.missDip(); }
+  else { comboUp(); score += pts * mult(); accSum += acc; }
+  const sub = diff !== undefined && kind !== 'PERFECT' ? (diff < 0 ? 'EARLY' : 'LATE') : '';
+  judgeText = { text: kind, col, sub, t: performance.now() };
+  if (diff !== undefined) { hitLog.push({ d: diff, at: performance.now() }); if (hitLog.length > 30) hitLog.shift(); allHits.push(diff); }
+}
+function press(l, lag = 0) {
+  if (held[l]) return;
+  held[l] = true; pressFx[l] = 1;
+  const t = songTime() - lag, arr = laneNotes[l];
+  for (let i = lanePtr[l]; i < arr.length; i++) {
+    const n = arr[i];
+    if (n.judged) continue;
+    if (n.t - t > WIN.good) break;
+    const ad = Math.abs(t - n.t);
+    if (ad > WIN.good) continue;
+    n.judged = true;
+    addJudge(ad <= WIN.perfect ? 'PERFECT' : ad <= WIN.great ? 'GREAT' : 'GOOD', t - n.t);
+    hitFx(l, ad <= WIN.perfect ? 1 : .6);
+    if (n.hold) { n.holding = true; activeHold[l] = n; A.holdOn(true); } else n.done = true;
+    break;
+  }
+}
+function release(l) {
+  if (!held[l]) return;
+  held[l] = false;
+  const h = activeHold[l]; if (!h) return;
+  const t = songTime();
+  if (t >= h.endT - .16) completeHold(h); else breakHold(h);
+}
+function completeHold(h) {
+  h.holding = false; h.done = true; activeHold[h.lane] = null;
+  accSum += 1; resolved++; comboUp(); score += 150 * mult();
+  hitFx(h.lane, 2); A.holdOn(activeHold.some(Boolean));
+  const [x, y] = proj(laneX(h.lane), 0); // release burst
+  rings.push({ x, y, r: laneW * .45, life: 1.4, col: WHITE }, { x, y, r: laneW * .2, life: 1.2, col: LC[h.lane] });
+}
+function breakHold(h) { h.holding = false; h.broken = true; activeHold[h.lane] = null; A.holdOn(activeHold.some(Boolean)); addJudge('MISS'); }
+
+function update(t, dt) {
+  for (let l = 0; l < 4; l++) {
+    const arr = laneNotes[l];
+    for (let i = lanePtr[l]; i < arr.length; i++) {
+      const n = arr[i];
+      if (!n.judged && t - n.t > WIN.good) {
+        n.judged = true; n.missed = true; addJudge('MISS');
+        if (n.hold) { counts.m++; resolved++; }
+      }
+      if (n.t - t > WIN.good) break;
+    }
+    while (lanePtr[l] < arr.length && arr[lanePtr[l]].judged && !arr[lanePtr[l]].holding && t - arr[lanePtr[l]].endT > .6) lanePtr[l]++;
+    const h = activeHold[l];
+    if (h) {
+      if (t >= h.endT) completeHold(h);
+      else {
+        score += dt * 90 * mult();
+        const [x, y] = proj(laneX(l), 0); // embers
+        for (let k = 0; k < 2; k++) spark(x + (Math.random() - .5) * laneW * .6, y, k ? mix(LC[l], WHITE, .5) : LC[l], .8, .7);
+        flashFx[l] = Math.max(flashFx[l], .55);
+      }
+    }
+  }
+  if (t > lastEnd + 2.2) finish();
+}
+
+/* =========================================================
+   RENDERING
+   ========================================================= */
+const cv = $('c'), g = cv.getContext('2d');
+// bloom chain: progressively downsampled copies of the frame, added back on top
+const BL = [2, 4, 8, 16].map(f => { const c = document.createElement('canvas'); return { c, x: c.getContext('2d'), f }; });
+function bloom(k) {
+  let src = cv;
+  for (const b of BL) {
+    b.x.globalCompositeOperation = 'copy'; b.x.drawImage(src, 0, 0, b.c.width, b.c.height); src = b.c;
+    if (b.f === 2) { b.x.globalCompositeOperation = 'multiply'; b.x.drawImage(b.c, 0, 0); } // square it: keeps highlights, drops darks
+  }
+  g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'lighter'; g.imageSmoothingEnabled = true;
+  g.globalAlpha = k * .35; g.drawImage(BL[1].c, 0, 0, cv.width, cv.height);
+  g.globalAlpha = k * .45; g.drawImage(BL[2].c, 0, 0, cv.width, cv.height);
+  g.globalAlpha = k * .6; g.drawImage(BL[3].c, 0, 0, cv.width, cv.height);
+  g.restore();
+}
+let W, H, DPR, cx, horY, hitY, roadW, laneW, dBottom;
+function resize() {
+  DPR = Math.min(2, window.devicePixelRatio || 1); W = innerWidth; H = innerHeight;
+  cv.width = W * DPR; cv.height = H * DPR; g.setTransform(DPR, 0, 0, DPR, 0, 0);
+  BL.forEach(b => { b.c.width = Math.max(1, Math.ceil(W / b.f)); b.c.height = Math.max(1, Math.ceil(H / b.f)); });
+  cx = W / 2; hitY = H * .84;
+  roadW = Math.min(W * .78, H * .7, 620); laneW = roadW / 4;
+  setHorizon(0);
+}
+function setHorizon(bob) {
+  horY = H * .33 + bob;
+  const sB = (H + 10 - horY) / (hitY - horY); dBottom = (1 / sB - 1) / K;
+}
+addEventListener('resize', resize); resize();
+
+// ---- the wave: rolling hills fixed to the ground, zero at the hit line ----
+// WAVE_UP = hill height, WAVE_SIDE = sideways sway (0 = off). One crest reaches the player every 2 bars.
+// WAVE_UP .13 keeps the road ahead fully visible even at peak (drop2 ×1.3, kick pulse ×1.12): no note is ever hidden.
+const WAVE_UP = .13, WAVE_SIDE = 0;
+const WAVE_W = Math.PI * 2 / (BAR * 2), WAVE_K = WAVE_W * BASE_LOOK; // fixed: hill shape tuned for visibility
+const wave = { amp: 0, a: 0, phase: 0 };
+function off(d) { if (!WAVE_SIDE || wave.a < .002 || d <= 0) return 0; return WAVE_SIDE * wave.a * roadW * Math.sin(wave.phase + d * WAVE_K) * d / (1 + .25 * d); }
+function lift(d) { // screen-space bump: 0 at the hit line and at the horizon, peaks mid-distance
+  if (wave.a < .002 || d <= 0) return 0;
+  const s = 1 / (1 + K * d);
+  return wave.a * WAVE_UP * (hitY - horY) * 34.72 * s * s * s * (1 - s) * (1 - s) * Math.sin(wave.phase + d * WAVE_K);
+}
+function proj(X, d) { const s = 1 / (1 + K * d); return [cx + (X + off(d)) * s, horY + (hitY - horY) * s - lift(d), s]; }
+const laneX = l => -roadW / 2 + laneW * (l + .5);
+const yAt = d => horY + (hitY - horY) / (1 + K * d) - lift(d);
+// depth samples spaced evenly on screen (linear in perspective scale)
+function dSpan(d0, d1, n) {
+  if (wave.a < .002) n = 1;
+  const s0 = 1 / (1 + K * d0), s1 = 1 / (1 + K * d1), out = [];
+  for (let i = 0; i <= n; i++) { const s = s0 + (s1 - s0) * i / n; out.push((1 / s - 1) / K); }
+  return out;
+}
+// far ground never rises above nearer ground on screen (a crest hides what's behind it instead of overlapping)
+const path = (X, ds) => { let m = Infinity; return ds.map(d => { const p = proj(X, d); if (p[1] > m) p[1] = m; else m = p[1]; return p; }); };
+function tracePts(pts, move = true) { if (move) g.moveTo(pts[0][0], pts[0][1]); else g.lineTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) g.lineTo(pts[i][0], pts[i][1]); }
+function fillBand(a, b) { g.beginPath(); tracePts(a); tracePts(b.slice().reverse(), false); g.closePath(); g.fill(); }
+function glowPath(pts, c, w, a) {
+  g.beginPath(); tracePts(pts);
+  g.strokeStyle = rgba(c, a * .07); g.lineWidth = w * 7; g.stroke();
+  g.strokeStyle = rgba(c, a * .2); g.lineWidth = w * 3; g.stroke();
+  g.strokeStyle = rgba(c, a); g.lineWidth = w; g.stroke();
+  g.strokeStyle = `rgba(255,255,255,${a * .55})`; g.lineWidth = Math.max(.6, w * .35); g.stroke();
+}
+
+// scenery
+let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+const STARS = Array.from({ length: 110 }, () => ({ x: rnd(), y: rnd() * .95, r: rnd() < .15 ? 2 : 1, b: .3 + rnd() * .7, sp: .5 + rnd() * 2, ph: rnd() * 6 }));
+function ridge(n, rough) { const a = []; let v = .4; for (let i = 0; i <= n; i++) { v += (rnd() - .5) * rough; v = clamp(v, .05, 1); const edge = Math.abs(i / n - .5) * 2; a.push(v * (.25 + edge * .85)); } return a; }
+const MT_FAR = ridge(70, .5), MT_NEAR = ridge(46, .7);
+
+function sectionInfo(t) {
+  const bar = Math.floor(t / BAR), s = bar < 0 ? 'intro' : bar >= BARS ? 'outro' : secOf(bar);
+  let inten = { intro: .3, build: .35 + .55 * clamp((t / BAR - 4) / 8, 0, 1), drop: 1, break: .4, drop2: 1, outro: .45 }[s];
+  const kickOn = s === 'build' || s === 'drop' || s === 'drop2' || (s === 'outro' && bar < 54);
+  return { bar, s, inten, kickOn };
+}
+
+function glowLine(x1, y1, x2, y2, c, w, a) {
+  g.strokeStyle = rgba(c, a * .07); g.lineWidth = w * 7; g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke();
+  g.strokeStyle = rgba(c, a * .2); g.lineWidth = w * 3; g.stroke();
+  g.strokeStyle = rgba(c, a); g.lineWidth = w; g.stroke();
+  g.strokeStyle = `rgba(255,255,255,${a * .55})`; g.lineWidth = Math.max(.6, w * .35); g.stroke();
+}
+function poly(pts) { g.beginPath(); g.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) g.lineTo(pts[i][0], pts[i][1]); g.closePath(); }
+
+function drawSky(t, pulse, inten) {
+  const sky = g.createLinearGradient(0, 0, 0, horY);
+  sky.addColorStop(0, '#010208'); sky.addColorStop(.65, '#030a1b'); sky.addColorStop(1, '#0b2442');
+  g.fillStyle = sky; g.fillRect(0, 0, W, horY + 1);
+  const fl = g.createLinearGradient(0, horY, 0, H);
+  fl.addColorStop(0, '#061426'); fl.addColorStop(.22, '#01050c'); fl.addColorStop(1, '#000');
+  g.fillStyle = fl; g.fillRect(0, horY, W, H - horY);
+  g.globalCompositeOperation = 'lighter';
+  for (const s of STARS) { const a = (.25 + .6 * Math.sin(t * s.sp + s.ph) ** 2) * s.b; g.fillStyle = `rgba(150,215,255,${a})`; g.fillRect(s.x * W, s.y * horY * .9, s.r, s.r); }
+  // horizon bloom
+  g.save(); g.translate(cx, horY); g.scale(1, .32);
+  const R = W * .65, hg = g.createRadialGradient(0, 0, 0, 0, 0, R);
+  hg.addColorStop(0, rgba(S, .3 + .2 * pulse * inten + flare * .5)); hg.addColorStop(.25, rgba(P, .13 + .1 * pulse * inten + flare * .2)); hg.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = hg; g.fillRect(-R, -R, R * 2, R * 2); g.restore();
+  // spectrum skyline
+  const bins = 48, bw = W / 2 / bins;
+  let fd = null; if (A.analyser && state !== 'title') { A.analyser.getByteFrequencyData(A.freqData); fd = A.freqData; }
+  for (let i = 0; i < bins; i++) {
+    const v = fd ? fd[Math.floor(2 + i * 1.6)] / 255 : (.25 + .2 * Math.sin(t * 2 + i * .5) * Math.sin(t * .7 + i * .13)) * .6;
+    const h = v * v * horY * .42 * (.4 + inten * .6);
+    const col = i < bins / 2 ? P : S;
+    g.fillStyle = rgba(col, .18 + v * .25);
+    g.fillRect(cx + i * bw + 1, horY - h, bw - 2, h); g.fillRect(cx - (i + 1) * bw + 1, horY - h, bw - 2, h);
+  }
+  g.globalCompositeOperation = 'source-over';
+  // mountains
+  const mtn = (arr, hScale, col, a) => {
+    const step = W / (arr.length - 1), pts = arr.map((v, i) => [i * step, horY - v * hScale]);
+    g.beginPath(); g.moveTo(0, horY); pts.forEach(p => g.lineTo(p[0], p[1])); g.lineTo(W, horY); g.closePath();
+    g.fillStyle = '#02060e'; g.fill();
+    g.globalCompositeOperation = 'lighter';
+    g.beginPath(); pts.forEach((p, i) => i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]));
+    g.strokeStyle = rgba(col, a * .25); g.lineWidth = 5; g.stroke(); g.strokeStyle = rgba(col, a); g.lineWidth = 1.2; g.stroke();
+    g.globalCompositeOperation = 'source-over';
+  };
+  mtn(MT_FAR, horY * .2, S, .45);
+  mtn(MT_NEAR, horY * .13, P, .6 + .3 * pulse * inten);
+  g.globalCompositeOperation = 'lighter';
+  glowLine(0, horY, W, horY, mix(S, WHITE, .35 + flare * .5), 1.3 * (1 + flare * 2.5), Math.min(1, .7 + .3 * pulse * inten + flare));
+  if (flare > .01) { // anamorphic lens streak on the horizon
+    g.save(); g.translate(cx, horY); g.scale(1, .035);
+    const R2 = W * .7, lg = g.createRadialGradient(0, 0, 0, 0, 0, R2);
+    lg.addColorStop(0, `rgba(255,255,255,${flare})`); lg.addColorStop(.3, rgba(S, flare * .6)); lg.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = lg; g.fillRect(-R2, -R2, R2 * 2, R2 * 2); g.restore();
+  }
+  g.globalCompositeOperation = 'source-over';
+}
+
+function drawFloor(t, pulse, inten) {
+  g.globalCompositeOperation = 'lighter';
+  const vg = g.createLinearGradient(0, horY, 0, H);
+  vg.addColorStop(0, rgba(P, 0)); vg.addColorStop(.35, rgba(P, .16 + .12 * pulse * inten + feverT * .1)); vg.addColorStop(1, rgba(P, .4 + .2 * pulse * inten + feverT * .15));
+  g.strokeStyle = vg; g.lineWidth = 1;
+  g.beginPath();
+  const fds = dSpan(dBottom, 60, 20);
+  for (let k = 1; k <= 26; k++) for (const side of [-1, 1]) tracePts(path(side * (roadW / 2 + k * laneW * 1.15), fds));
+  g.stroke();
+  // horizontal lines on the beat
+  const b0 = Math.floor((t + dBottom * LOOK) / SPB), b1 = Math.ceil((t + 5 * LOOK) / SPB);
+  for (let b = b0; b <= b1; b++) {
+    const d = (b * SPB - t) / LOOK; if (d < dBottom) continue;
+    const y = yAt(d), s = 1 / (1 + K * d), isBar = ((b % 4) + 4) % 4 === 0;
+    const a = Math.min(1, s * 1.4) * (isBar ? .5 : .22) * (.6 + .4 * inten);
+    g.strokeStyle = rgba(P, a); g.lineWidth = isBar ? 1.5 : 1;
+    g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke();
+  }
+  // light cycles
+  for (const c of cycles) {
+    const head = c.d0 - (t - c.t0) * c.v, tail = head + (c.len || .9);
+    if (head < dBottom - .1) { c.dead = true; continue; }
+    const pts = path(c.X, dSpan(Math.max(head, dBottom), tail, 8));
+    const [x1, y1] = pts[0], [x2, y2] = pts[pts.length - 1];
+    const gr = g.createLinearGradient(x1, y1, x2, y2); gr.addColorStop(0, rgba(c.col, .95)); gr.addColorStop(1, rgba(c.col, 0));
+    g.strokeStyle = gr; g.lineWidth = 6 / (1 + K * Math.max(head, 0)); g.beginPath(); tracePts(pts); g.stroke();
+    g.lineWidth = 1.5; g.strokeStyle = 'rgba(255,255,255,.8)'; g.beginPath(); tracePts(pts.slice(0, Math.max(2, pts.length >> 2))); g.stroke();
+    g.fillStyle = rgba(c.col, .35); g.beginPath(); g.arc(x1, y1, 10 / (1 + K * Math.max(head, 0)), 0, 7); g.fill();
+  }
+  cycles = cycles.filter(c => !c.dead);
+  g.globalCompositeOperation = 'source-over';
+}
+function spawnCycle(t) {
+  const side = Math.random() < .5 ? -1 : 1, k = 1 + Math.floor(Math.random() * 7);
+  cycles.push({ X: side * (roadW / 2 + k * laneW * 1.15), d0: 5, t0: t, v: 2.2 + Math.random() * 1.5, col: (side < 0 ? P : S).slice() });
+}
+function spawnStreak(t) { // fever: fast short light streaks rushing past
+  const side = Math.random() < .5 ? -1 : 1;
+  cycles.push({ X: side * (roadW / 2 + (.3 + Math.random() * 6) * laneW), d0: 2.6, t0: t, v: 5 + Math.random() * 3, len: .15 + Math.random() * .2, col: LC[Math.floor(Math.random() * 4)] });
+}
+
+function drawRoad(t, pulse, inten, live) {
+  const half = roadW / 2, ds = dSpan(dBottom, 60, 28);
+  const Lp = path(-half, ds), Rp = path(half, ds);
+  g.fillStyle = 'rgba(0,4,12,.88)'; fillBand(Lp, Rp);
+  g.globalCompositeOperation = 'lighter';
+  if (feverT > .01) { // energised road surface
+    const fg = g.createLinearGradient(0, H, 0, horY);
+    fg.addColorStop(0, rgba(P, .14 * feverT * (.6 + .4 * pulse))); fg.addColorStop(1, rgba(P, 0));
+    g.fillStyle = fg; fillBand(Lp, Rp);
+  }
+  // lane press glow
+  const gds = dSpan(dBottom, .9, 14);
+  for (let l = 0; l < 4; l++) {
+    const p = pressFx[l]; if (p < .01) continue;
+    const xl = -half + laneW * l, lp = path(xl, gds), rp = path(xl + laneW, gds);
+    const gr = g.createLinearGradient(0, lp[0][1], 0, lp[lp.length - 1][1]); gr.addColorStop(0, rgba(LC[l], .32 * p)); gr.addColorStop(1, rgba(LC[l], 0));
+    g.fillStyle = gr; fillBand(lp, rp);
+  }
+  // beat lines on the road
+  const b0 = Math.floor((t + dBottom * LOOK) / SPB), b1 = Math.ceil((t + 5 * LOOK) / SPB);
+  for (let b = b0; b <= b1; b++) {
+    const d = (b * SPB - t) / LOOK; if (d < dBottom) continue;
+    const [x1, y] = proj(-half, d), [x2] = proj(half, d), s = 1 / (1 + K * d), isBar = ((b % 4) + 4) % 4 === 0;
+    g.strokeStyle = rgba(P, Math.min(1, s * 1.3) * (isBar ? .45 : .16) * (.5 + .5 * inten)); g.lineWidth = isBar ? 2 * s + .5 : 1;
+    g.beginPath(); g.moveTo(x1, y); g.lineTo(x2, y); g.stroke();
+  }
+  // lane dividers + edges
+  for (let i = 1; i < 4; i++) {
+    g.strokeStyle = rgba(mix(P, WHITE, i === 2 ? .4 : 0), (i === 2 ? .35 : .2) + feverT * .35 * (.5 + .5 * pulse)); g.lineWidth = 1 + feverT;
+    g.beginPath(); tracePts(path(-half + laneW * i, ds)); g.stroke();
+  }
+  const edgeA = Math.min(1, .65 + .35 * pulse * inten + feverT * .3 + dropBoost * .4);
+  const ew = 2.4 * (1 + feverT * .5 + dropBoost * 1.3), hot = Math.min(1, feverT * pulse * .55 + dropBoost * .5);
+  glowPath(Lp, mix(P, WHITE, hot), ew, edgeA);
+  glowPath(Rp, mix(S, WHITE, hot), ew, edgeA);
+  // hit line
+  const [hx1] = proj(-half, 0), [hx2] = proj(half, 0);
+  glowLine(hx1 - 8, hitY, hx2 + 8, hitY, [170, 240, 255], 2, .85 + .15 * pulse);
+  g.globalCompositeOperation = 'source-over';
+}
+
+function noteQuad(l, d, td, inset) {
+  const xl = -roadW / 2 + laneW * l + laneW * inset, xr = xl + laneW * (1 - 2 * inset);
+  const a = proj(xl, d), b = proj(xr, d), c = proj(xr, d + td), e = proj(xl, d + td);
+  return [[a[0], a[1]], [b[0], b[1]], [c[0], c[1]], [e[0], e[1]]];
+}
+function drawTap(l, d, col, alpha, boost = 0) {
+  const s = 1 / (1 + K * Math.max(d, -.2)), q = noteQuad(l, d, .045, .07);
+  g.globalCompositeOperation = 'lighter';
+  g.lineJoin = 'round';
+  poly(q); g.strokeStyle = rgba(col, .16 * alpha); g.lineWidth = 16 * s; g.stroke();
+  g.strokeStyle = rgba(col, .35 * alpha); g.lineWidth = 6 * s; g.stroke();
+  g.globalCompositeOperation = 'source-over';
+  g.fillStyle = rgba(col.map(v => v * .35), .95 * alpha); g.fill();
+  g.globalCompositeOperation = 'lighter';
+  g.strokeStyle = rgba(col, alpha); g.lineWidth = 2.2 * s + .6; g.stroke();
+  const mY = (q[0][1] + q[3][1]) / 2, mxl = (q[0][0] + q[3][0]) / 2, mxr = (q[1][0] + q[2][0]) / 2, pad = (mxr - mxl) * .16;
+  g.strokeStyle = `rgba(255,255,255,${(.85 + boost) * alpha})`; g.lineWidth = 2.4 * s + .5;
+  g.beginPath(); g.moveTo(mxl + pad, mY); g.lineTo(mxr - pad, mY); g.stroke();
+  g.globalCompositeOperation = 'source-over';
+}
+function drawHold(n, t, d0, d1, col, alpha) {
+  const l = n.lane, inset = .27, ds = dSpan(d0, d1, 12);
+  const lp = path(-roadW / 2 + laneW * (l + inset), ds), rp = path(-roadW / 2 + laneW * (l + 1 - inset), ds);
+  g.globalCompositeOperation = 'lighter';
+  const gr = g.createLinearGradient(0, lp[0][1], 0, lp[lp.length - 1][1] - .01);
+  gr.addColorStop(0, rgba(col, (n.holding ? .45 : .26) * alpha)); gr.addColorStop(1, rgba(col, .06 * alpha));
+  g.fillStyle = gr; fillBand(lp, rp);
+  glowPath(lp, col, 1.6, .85 * alpha);
+  glowPath(rp, col, 1.6, .85 * alpha);
+  // energy chevrons flowing toward the player
+  const sp = .16, off = (t * 1.4) % sp;
+  for (let d = d0 + sp - off; d < d1 - .02; d += sp) {
+    const s = 1 / (1 + K * d), [a] = proj(-roadW / 2 + laneW * (l + inset), d), [b] = proj(-roadW / 2 + laneW * (l + 1 - inset), d), y = yAt(d);
+    g.strokeStyle = rgba(col, .6 * alpha * Math.min(1, s * 2)); g.lineWidth = 1.5 * s + .4;
+    g.beginPath(); g.moveTo(a + 3 * s, y); g.lineTo((a + b) / 2, y + 6 * s); g.lineTo(b - 3 * s, y); g.stroke();
+  }
+  g.globalCompositeOperation = 'source-over';
+  drawTap(l, d1, col, alpha * .8);
+}
+
+// a held note burns away at the hit line: hot plate + flickering flame tongues
+function drawBurn(l, t) {
+  const c = LC[l], hot = mix(c, WHITE, .55), fl = .78 + .22 * Math.sin(t * 43 + l * 2);
+  const q = noteQuad(l, -.012, .03, .04);
+  g.globalCompositeOperation = 'lighter';
+  poly(q); g.fillStyle = rgba(c, .5 * fl); g.fill();
+  g.strokeStyle = rgba(hot, fl); g.lineWidth = 3; g.stroke();
+  const [x, y] = proj(laneX(l), 0), w = laneW * .78, fh = Math.min(80, H * .09);
+  const fg = g.createLinearGradient(0, y, 0, y - fh);
+  fg.addColorStop(0, rgba(hot, .6 * fl)); fg.addColorStop(.5, rgba(c, .25 * fl)); fg.addColorStop(1, rgba(c, 0));
+  g.fillStyle = fg; g.beginPath(); g.moveTo(x - w / 2, y);
+  for (let i = 0; i <= 8; i++) {
+    const xx = x - w / 2 + w * i / 8, hh = fh * (i % 2 ? 1 : .45) * (.55 + .45 * Math.sin(t * 27 + i * 1.9 + l)) * (1 - Math.abs(i / 8 - .5) * .9);
+    g.lineTo(xx, y - hh);
+  }
+  g.lineTo(x + w / 2, y); g.closePath(); g.fill();
+  g.globalCompositeOperation = 'source-over';
+}
+function drawNotes(t) {
+  const dMax = 1.25;
+  // occlusion: notes behind a hill crest fade out until they come over the top
+  const occ = []; let m = Infinity;
+  for (let i = 0; i <= 70; i++) { m = Math.min(m, yAt(i * .02)); occ.push(m); }
+  const vis = d => { if (d <= 0 || d >= 1.4) return 1; const over = yAt(d) - occ[Math.floor(d / .02)]; return clamp(1 - (over - 1) / 10, 0, 1); };
+  // chord connectors: a light bar joining notes you hit together (drawn under the notes)
+  g.globalCompositeOperation = 'lighter';
+  for (const c of chords) {
+    if (c.a.judged || c.b.judged) continue;
+    const d = (c.a.t - t) / LOOK; if (d > dMax || d < dBottom) continue;
+    const a = clamp((dMax - d) / .3, 0, 1) * vis(d), s = 1 / (1 + K * Math.max(d, 0));
+    const x0 = laneX(Math.min(c.a.lane, c.b.lane)), x1 = laneX(Math.max(c.a.lane, c.b.lane)), pts = [];
+    for (let i = 0; i <= 8; i++) pts.push(proj(x0 + (x1 - x0) * i / 8, d + .0225));
+    glowPath(pts, [235, 245, 255], 2.2 * s + .5, .6 * a);
+  }
+  g.globalCompositeOperation = 'source-over';
+  for (let i = notes.length - 1; i >= 0; i--) {
+    const n = notes[i];
+    if (n.done) continue;
+    const d0 = (n.t - t) / LOOK, d1 = (n.endT - t) / LOOK;
+    if (d0 > dMax + .1) continue;
+    if ((n.hold ? d1 : d0) < dBottom) continue;
+    if (!n.hold && n.judged && !n.missed) continue;
+    const fade = clamp((dMax - d0) / .3, 0, 1) * (n.holding ? 1 : vis(d0));
+    if (fade <= 0 && !n.hold) continue;
+    const dead = n.missed || n.broken, col = dead ? [80, 90, 110] : LC[n.lane], alpha = fade * (dead ? .45 : 1);
+    if (n.hold) {
+      const start = n.holding ? 0 : d0;
+      if (Math.min(d1, dMax) > start) drawHold(n, t, start, Math.min(d1, dMax), col, alpha);
+      if (!n.holding && !(n.judged && !dead)) drawTap(n.lane, d0, col, alpha);
+      if (n.holding) drawBurn(n.lane, t);
+    } else drawTap(n.lane, d0, col, alpha);
+  }
+}
+
+function drawReceptors() {
+  g.font = '700 13px Orbitron, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  for (let l = 0; l < 4; l++) {
+    const q = noteQuad(l, -.012, .024, .06), c = LC[l], p = pressFx[l];
+    g.globalCompositeOperation = 'lighter';
+    poly(q); g.fillStyle = rgba(c, .08 + .35 * p); g.fill();
+    g.strokeStyle = rgba(c, .5 + .5 * p); g.lineWidth = 1.5; g.stroke();
+    const f = flashFx[l];
+    if (f > .01) { // vertical beam
+      const xl = q[0][0], xr = q[1][0], top = hitY - H * .42 * f;
+      const gr = g.createLinearGradient(0, hitY, 0, top); gr.addColorStop(0, rgba(c, .55 * f)); gr.addColorStop(1, rgba(c, 0));
+      g.fillStyle = gr; g.fillRect(xl, top, xr - xl, hitY - top);
+    }
+    g.globalCompositeOperation = 'source-over';
+    g.fillStyle = rgba(c, .55 + .45 * p); g.fillText(KEYLBL[l], (q[0][0] + q[1][0]) / 2, hitY + 30);
+  }
+}
+
+function hitFx(l, power) {
+  const [x, y, s] = proj(laneX(l), 0), c = LC[l];
+  flashFx[l] = 1;
+  rings.push({ x, y, r: laneW * .25, life: 1, col: c });
+  for (let i = 0; i < 16 * power * (1 + feverT * .7); i++) spark(x + (Math.random() - .5) * laneW * .6, y, c, 1.4 * power, 1);
+}
+function spark(x, y, col, pow, life) {
+  const a = -Math.PI / 2 + (Math.random() - .5) * 2.2, v = (120 + Math.random() * 380) * pow;
+  particles.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life, max: life, col: Math.random() < .3 ? [255, 255, 255] : col });
+}
+function drawFx(dt) {
+  g.globalCompositeOperation = 'lighter';
+  for (const p of particles) {
+    p.life -= dt * 1.8; p.vy += 600 * dt; p.vx *= .97; p.x += p.vx * dt; p.y += p.vy * dt;
+    const a = Math.max(0, p.life / p.max);
+    g.strokeStyle = rgba(p.col, a); g.lineWidth = 1.6;
+    g.beginPath(); g.moveTo(p.x, p.y); g.lineTo(p.x - p.vx * .03, p.y - p.vy * .03); g.stroke();
+  }
+  particles = particles.filter(p => p.life > 0);
+  if (particles.length > 600) particles.splice(0, particles.length - 600);
+  for (const r of rings) {
+    r.life -= dt * 2.6; r.r += dt * 260;
+    g.strokeStyle = rgba(r.col, Math.max(0, r.life)); g.lineWidth = 2.5 * r.life + .5;
+    g.beginPath(); g.ellipse(r.x, r.y, r.r, r.r * .3, 0, 0, 7); g.stroke();
+  }
+  rings = rings.filter(r => r.life > 0);
+  g.globalCompositeOperation = 'source-over';
+  for (let l = 0; l < 4; l++) { flashFx[l] = Math.max(0, flashFx[l] - dt * 4); if (!held[l]) pressFx[l] = Math.max(0, pressFx[l] - dt * 6); }
+}
+
+function glowText(txt, x, y, font, col, a, blur = 18, core = .6) {
+  g.font = font; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.shadowColor = rgba(col, a); g.shadowBlur = blur; g.fillStyle = rgba(col, a); g.fillText(txt, x, y);
+  g.shadowBlur = 0; if (core > 0) { g.fillStyle = `rgba(255,255,255,${a * core})`; g.fillText(txt, x, y); }
+}
+function drawHUD(t) {
+  // judgement
+  if (judgeText) {
+    const age = (performance.now() - judgeText.t) / 1000;
+    if (age < .6) {
+      const sc = 1 + .35 * Math.max(0, 1 - age / .09), a = age < .4 ? 1 : 1 - (age - .4) / .2;
+      g.save(); g.translate(cx, hitY - (hitY - horY) * .2); g.scale(sc, sc);
+      // judgement text: softer than other HUD glow so it doesn't flare under bloom
+      glowText(judgeText.text, 0, 0, `900 ${Math.round(Math.min(34, W * .07))}px Orbitron, sans-serif`, judgeText.col, a * .62, 9, .12);
+      if (judgeText.sub) glowText(judgeText.sub, 0, 28, '700 12px Orbitron, sans-serif', judgeText.sub === 'EARLY' ? [90, 180, 255] : [255, 130, 70], a * .65, 5, 0);
+      g.restore();
+    }
+  }
+  // combo
+  if (combo >= 5) {
+    const y = horY + (hitY - horY) * .3;
+    glowText(String(combo), cx, y, `900 ${Math.round(Math.min(72, W * .14))}px Orbitron, sans-serif`, [0, 230, 255], .55, 24);
+    glowText('COMBO', cx, y + Math.min(44, W * .085), '700 12px Orbitron, sans-serif', [255, 170, 60], .8, 10);
+  }
+  // score / acc / multiplier
+  g.font = '700 22px Orbitron, sans-serif'; g.textAlign = 'left'; g.textBaseline = 'top';
+  g.shadowColor = 'rgba(0,234,255,.8)'; g.shadowBlur = 12; g.fillStyle = '#e8fdff';
+  g.fillText(Math.round(score).toString().padStart(7, '0'), 20, 18);
+  g.shadowBlur = 0; g.font = '500 12px Orbitron, sans-serif'; g.fillStyle = 'rgba(140,210,235,.85)';
+  const acc = resolved ? accSum / resolved * 100 : 100;
+  g.fillText(`ACC ${acc.toFixed(1)}%`, 21, 48);
+  const m = mult();
+  g.textAlign = 'right'; g.font = '900 22px Orbitron, sans-serif';
+  g.shadowColor = 'rgba(255,150,40,.9)'; g.shadowBlur = 12; g.fillStyle = m > 1 ? '#ffb24a' : 'rgba(255,178,74,.4)';
+  g.fillText('×' + m, W - 66, 18); g.shadowBlur = 0;
+  if (feverT > .05) glowText('FEVER', W - 92, 56, '900 14px Orbitron, sans-serif', [255, 190, 90], feverT * (.65 + .35 * Math.sin(performance.now() / 80)), 14);
+  // progress
+  const prog = clamp(t / lastEnd, 0, 1), px1 = cx - roadW / 2, pw = roadW;
+  g.fillStyle = 'rgba(0,180,255,.15)'; g.fillRect(px1, 12, pw, 2);
+  g.globalCompositeOperation = 'lighter';
+  glowLine(px1, 13, px1 + pw * prog, 13, [0, 230, 255], 2, .9);
+  g.globalCompositeOperation = 'source-over';
+  // countdown
+  if (t < 0) {
+    const n = Math.ceil(-t / SPB);
+    if (n <= 4) glowText(String(n), cx, horY + (hitY - horY) * .32, '900 64px Orbitron, sans-serif', [255, 170, 60], .9 * (1 - ((-t / SPB) % 1)), 26);
+  }
+  // banner (FEVER / combo milestones)
+  if (banner) {
+    const age = (performance.now() - banner.t) / 1000;
+    if (age < 1.4) {
+      const sc = 1 + .5 * Math.max(0, 1 - age / .15), a = age < 1 ? 1 : 1 - (age - 1) / .4;
+      g.save(); g.translate(cx, horY + (hitY - horY) * .12); g.scale(sc, sc);
+      glowText(banner.text, 0, 0, `900 ${Math.round(Math.min(46, W * .085))}px Orbitron, sans-serif`, banner.col, a, 30);
+      g.restore();
+    } else banner = null;
+  }
+  // timing bar: where your recent hits landed (left = early, right = late)
+  const tbW = Math.min(180, roadW * .5), tbY = Math.min(H - 12, hitY + 52), now = performance.now(), hw = tbW / 2;
+  g.fillStyle = 'rgba(255,160,40,.3)'; g.fillRect(cx - hw, tbY - 1, tbW, 2);
+  g.fillStyle = 'rgba(60,150,255,.55)'; g.fillRect(cx - hw * WIN.great / WIN.good, tbY - 1, tbW * WIN.great / WIN.good, 2);
+  g.fillStyle = 'rgba(0,234,255,.9)'; g.fillRect(cx - hw * WIN.perfect / WIN.good, tbY - 1, tbW * WIN.perfect / WIN.good, 2);
+  g.fillStyle = 'rgba(255,255,255,.7)'; g.fillRect(cx - .5, tbY - 6, 1, 12);
+  g.globalCompositeOperation = 'lighter';
+  for (const h of hitLog) {
+    const age = (now - h.at) / 1000; if (age > 4) continue;
+    const ad = Math.abs(h.d), col = ad <= WIN.perfect ? [0, 234, 255] : ad <= WIN.great ? [60, 150, 255] : [255, 160, 40];
+    g.fillStyle = rgba(col, 1 - age / 4); g.fillRect(cx + clamp(h.d / WIN.good, -1, 1) * hw - 1, tbY - 5, 2, 10);
+  }
+  g.globalCompositeOperation = 'source-over';
+  g.font = '500 9px Orbitron, sans-serif'; g.fillStyle = 'rgba(140,200,230,.45)'; g.textBaseline = 'middle';
+  g.textAlign = 'right'; g.fillText('EARLY', cx - hw - 8, tbY); g.textAlign = 'left'; g.fillText('LATE', cx + hw + 8, tbY);
+}
+
+/* ---------- main loop ---------- */
+let lastNow = performance.now();
+function frame(now) {
+  const dt = Math.min(.05, (now - lastNow) / 1000); lastNow = now;
+  const live = state === 'play' || state === 'pause';
+  const t = live ? songTime() : now / 1000;
+  if (state === 'play') update(t, dt);
+  if (state === 'calib') calTick();
+  const info = live ? sectionInfo(t) : { inten: .6, kickOn: true, bar: Math.floor(t / BAR), s: 'title' };
+  const phase = (((t / SPB) % 1) + 1) % 1;
+  const pulse = info.kickOn ? Math.exp(-phase * 6) : .25 * Math.exp(-phase * 3);
+  // section events
+  if (info.bar !== lastBar) {
+    lastBar = info.bar;
+    if (live && (info.bar === 12 || info.bar === 36)) { dropFlash = 1; shake = 10; punch = 1; dropBoost = 1; flare = 1; }
+    if (info.s === 'drop' || info.s === 'drop2') { spawnCycle(t); if (Math.random() < .6) spawnCycle(t); }
+    else if (info.s === 'title' || info.s === 'build' || Math.random() < .4) spawnCycle(t);
+  }
+  // wave energy: calm in intro/outro, sways in the breakdown, rolls hard in the drops
+  const bar = t / BAR;
+  const tgt = !live ? .55 : ({ drop: 1, drop2: 1.3, break: .25, build: bar >= 10 ? .3 : 0, outro: bar < 54 ? .4 : 0 }[info.s] || 0);
+  wave.amp += (tgt - wave.amp) * Math.min(1, dt * 1.1);
+  wave.phase = t * WAVE_W;
+  wave.a = wave.amp * (1 + .12 * pulse);
+  // camera pitch: horizon rises and dips as the hills pass under you
+  setHorizon(wave.amp * H * .03 * Math.cos(wave.phase + .6));
+  // fever / drop / palette envelopes
+  feverT += ((fever && state === 'play' ? 1 : 0) - feverT) * Math.min(1, dt * 3);
+  palT += ((live && info.s === 'drop2' ? 1 : 0) - palT) * Math.min(1, dt * .8);
+  P = mix(CYAN, ORANGE, palT); S = mix(ORANGE, CYAN, palT);
+  punch = Math.max(0, punch - dt * 1.8); dropBoost = Math.max(0, dropBoost - dt * .6);
+  flare = Math.max(0, flare - dt * 1.2); powerFx = Math.max(0, powerFx - dt * 1.5);
+  if (state === 'play' && feverT > .3 && Math.random() < feverT * .4) spawnStreak(t);
+  g.save();
+  if (shake > .1) { g.translate((Math.random() - .5) * shake, (Math.random() - .5) * shake); shake *= Math.pow(.02, dt); }
+  if (punch > 0) { const z = 1 + .07 * punch * punch; g.translate(cx, horY); g.scale(z, z); g.translate(-cx, -horY); }
+  drawSky(t, pulse, info.inten);
+  drawFloor(t, pulse, info.inten);
+  drawRoad(t, pulse, info.inten, live);
+  if (live) { drawNotes(t); }
+  drawReceptors();
+  drawFx(dt);
+  if (live) drawHUD(t);
+  g.restore();
+  bloom(.75 + feverT * .3 + dropBoost * .35 + flare * .2);
+  g.save();
+  if (powerFx > 0) { g.fillStyle = `rgba(255,30,50,${powerFx * .22})`; g.fillRect(0, 0, W, H); }
+  if (dropFlash > 0) { g.fillStyle = `rgba(160,240,255,${dropFlash * .35})`; g.fillRect(-20, -20, W + 40, H + 40); dropFlash = Math.max(0, dropFlash - dt * 2.2); }
+  // vignette + scanlines
+  const vg = g.createRadialGradient(cx, H * .55, Math.min(W, H) * .3, cx, H * .55, Math.max(W, H) * .8);
+  vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.6)');
+  g.fillStyle = vg; g.fillRect(0, 0, W, H);
+  g.restore();
+  schedule();
+  requestAnimationFrame(frame);
+}
+
+/* ---------- input ---------- */
+addEventListener('keydown', e => {
+  if (state === 'play') {
+    const l = KEYMAP[e.code];
+    if (l !== undefined) { e.preventDefault(); if (!e.repeat) press(l, evLag(e)); return; }
+    if (e.code === 'Escape' || e.code === 'KeyP') pause();
+  } else if (state === 'pause') {
+    if (e.code === 'Escape' || e.code === 'Space' || e.code === 'Enter') { e.preventDefault(); resume(); }
+    if (e.code === 'KeyQ') quit();
+  } else if (state === 'title') {
+    if (e.code === 'Space' || e.code === 'Enter') { e.preventDefault(); startGame(); }
+    if (e.code === 'ArrowLeft' || e.code === 'ArrowRight') { diffIdx = (diffIdx + 1) % DIFFS.length; refreshTitle(); }
+    if (e.code === 'ArrowUp') { e.preventDefault(); setSpeed(.1); }
+    if (e.code === 'ArrowDown') { e.preventDefault(); setSpeed(-.1); }
+  } else if (state === 'calib') {
+    if (e.code === 'Escape') calExit(false);
+    else if (e.code === 'Space' || KEYMAP[e.code] !== undefined) { e.preventDefault(); if (!e.repeat) calTap(evLag(e)); }
+  } else if (state === 'results') {
+    if (e.code === 'Space' || e.code === 'Enter' || e.code === 'KeyR') { e.preventDefault(); startGame(); }
+    if (e.code === 'Escape') quit();
+  }
+});
+addEventListener('keyup', e => { const l = KEYMAP[e.code]; if (l !== undefined && state === 'play') release(l); });
+const touchLane = {};
+const laneFromX = x => clamp(Math.floor((x - (cx - roadW / 2)) / laneW), 0, 3);
+cv.addEventListener('touchstart', e => { e.preventDefault(); if (state !== 'play') return; for (const tc of e.changedTouches) { const l = laneFromX(tc.clientX); touchLane[tc.identifier] = l; press(l, evLag(e)); } }, { passive: false });
+const tEnd = e => { e.preventDefault(); for (const tc of e.changedTouches) { const l = touchLane[tc.identifier]; if (l !== undefined) { delete touchLane[tc.identifier]; if (state === 'play') release(l); } } };
+cv.addEventListener('touchend', tEnd, { passive: false }); cv.addEventListener('touchcancel', tEnd, { passive: false });
+cv.addEventListener('mousedown', e => { if (state === 'play') { const l = laneFromX(e.clientX); cv._ml = l; press(l); } });
+addEventListener('mouseup', () => { if (cv._ml !== undefined) { if (state === 'play') release(cv._ml); cv._ml = undefined; } });
+addEventListener('blur', () => { for (let l = 0; l < 4; l++) if (held[l]) release(l); pause(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
+
+$('startBtn').onclick = startGame; $('retryBtn').onclick = startGame;
+$('menuBtn').onclick = quit; $('quitBtn').onclick = quit; $('resumeBtn').onclick = resume; $('pauseBtn').onclick = pause;
+$('dPrev').onclick = () => { diffIdx = (diffIdx + DIFFS.length - 1) % DIFFS.length; refreshTitle(); };
+$('dNext').onclick = () => { diffIdx = (diffIdx + 1) % DIFFS.length; refreshTitle(); };
+$('sPrev').onclick = () => setSpeed(-.1); $('sNext').onclick = () => setSpeed(.1);
+$('rApply').onclick = () => {
+  userOffset = clamp(userOffset + resAvgMs, -300, 300);
+  try { localStorage.setItem('vibio.offset', String(userOffset)); } catch (e) { }
+  $('rApply').textContent = 'OFFSET NOW ' + fmtOff(userOffset) + ' ✓'; $('rApply').disabled = true;
+};
+$('calBtn').onclick = () => startCalib(false); $('calAgain').onclick = () => startCalib(true);
+$('calSave').onclick = () => calExit(true); $('calBack').onclick = () => calExit(false);
+$('offMinus').onclick = () => calNudge(-5); $('offPlus').onclick = () => calNudge(5);
+$('calib').addEventListener('pointerdown', e => { if (!e.target.closest('button')) calTap(evLag(e)); });
+
+buildSong(); refreshTitle(); show('title');
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
