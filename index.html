@@ -236,6 +236,29 @@ const SONGS = [
     buildLanes: (b, L) => b < 8 ? [L, (L + 1) % 4, (L + 2) % 4, (L + 1) % 4] : b < 10 ? [0, 1, 2, 3, 2, 1, 0, 1] : b === 10 ? [0, 3, 1, 2, 0, 3, 1, 2] : [3, 2, 1, 0, 3, 2, 1, 0],
     end: { pad: [62, 65, 69, 74], sub: 26, lanes: [0, 3] },
   },
+  {
+    id: 'obsidian', title: 'OBSIDIAN', genre: 'CHIPTUNE METAL', bpm: 160, theme: 'dark',
+    pal: [[255, 30, 70], [255, 90, 40], [255, 130, 30], [255, 30, 70]], // crimson world, fire-orange in drop 2
+    CH: [ // Em - C - D - B (harmonic minor: the major B pulls hard back to Em)
+      { root: 40, pad: [52, 55, 59], lane: 0 },
+      { root: 36, pad: [48, 52, 55], lane: 1 },
+      { root: 38, pad: [50, 54, 57], lane: 2 },
+      { root: 35, pad: [47, 51, 54], lane: 3 },
+    ],
+    PA: [[0,.5,71],[.5,.5,74],[1,.5,76],[1.5,.5,74],[2,1,71],[3,.5,67],[3.5,.5,69],
+         [4,1,72],[5,.5,71],[5.5,.5,72],[6,.5,69],[6.5,.5,67],[7,1,64],
+         [8,.5,66],[8.5,.5,69],[9,.5,74],[9.5,.5,72],[10,1,74],[11,.5,76],[11.5,.5,78],
+         [12,2,75],[14,2,71]],
+    PB: [[0,.5,76],[.5,.5,79],[1,.5,78],[1.5,.5,76],[2,1.5,79],[3.5,.5,78],
+         [4,.5,76],[4.5,.5,72],[5,.5,76],[5.5,.5,79],[6,2,76],
+         [8,.5,78],[8.5,.5,74],[9,.5,78],[9.5,.5,81],[10,1,78],[11,1,74],
+         [12,.5,75],[12.5,.5,78],[13,.5,83],[13.5,.5,78],[14,2,76]],
+    BRK: [[71, 67], [72, 67], [74, 69], [75, 71]],
+    laneSplit: [69, 73, 77],
+    lead: 'shred', padCut: 700, bassSteps: 8, arpIn: ['intro', 'break'],
+    buildLanes: (b, L) => b < 8 ? [L, (L + 2) % 4, L, (L + 2) % 4] : b < 10 ? [0, 1, 2, 3, 0, 1, 2, 3] : b === 10 ? [0, 3, 0, 3, 1, 2, 1, 2] : [0, 1, 2, 3, 3, 2, 1, 0],
+    end: { pad: [52, 55, 59, 64], sub: 28, lanes: [0, 3] },
+  },
 ];
 let songIdx = 0, SONG = SONGS[0], BPM = SONG.bpm, SPB = 60 / BPM, BAR = SPB * 4;
 const pitchLane = m => { const s = SONG.laneSplit; return m <= s[0] ? 0 : m <= s[1] ? 1 : m <= s[2] ? 2 : 3; };
@@ -251,6 +274,7 @@ function buildSong() {
   for (let b = 0; b < BARS; b++) {
     const B = b * 4, c = so.CH[b % 4], s = secOf(b);
     const drop = s === 'drop' || s === 'drop2';
+    if (so.id === 'obsidian') metalBar(b, B, c, s, drop); else {
     // pads
     const padV = { intro: .5, build: .4, drop: .22, break: .55, drop2: .22, outro: .5 }[s];
     if (b < 54) at(B, T => A.pad(T, c.pad, BAR, padV, so.padCut));
@@ -288,6 +312,7 @@ function buildSong() {
         at(B + i * .25, T => A.arp(T, m, cut, v));
       }
     }
+    } // end synthwave/darksynth arrangement
     // ---- chart for non-melody sections ----
     const L = c.lane;
     if (s === 'intro' || b === 28 || b === 29) note(B, L, 3);
@@ -344,6 +369,48 @@ function applySong() {
     for (const n of SONG.notes) CHART.push({ beat: n.beat, lane: n.lane, dur: n.dur, easy: n.dur > 0 || n.beat % 1 === 0 });
   } else buildSong();
 }
+// OBSIDIAN: one bar of the chiptune-metal arrangement (same 56-bar form as the others)
+function metalBar(b, B, c, s, drop) {
+  // dark choir pad
+  const padV = { intro: .45, build: .3, drop: .14, break: .5, drop2: .14, outro: .4 }[s];
+  if (b < 54) at(B, T => A.pad(T, c.pad, BAR, padV, 700));
+  if (b === 54) at(B, T => A.pad(T, [52, 55, 59, 64], BAR * 2, .5, 700));
+  // drums
+  if (drop) {
+    for (let i = 0; i < 16; i++) at(B + i * .25, T => A.kickTight(T, i % 4 === 0 ? .95 : .62)); // double bass
+    at(B + 1, T => A.snareBig(T, .75)); at(B + 3, T => A.snareBig(T, .75));
+    for (let i = 0; i < 8; i++) at(B + i * .5, T => A.hat(T, i % 2 ? .1 : .15, i % 2 === 1));
+    if (b % 2 === 0) at(B, T => A.crash(T));
+  }
+  if (s === 'build' || (s === 'outro' && b < 54)) {
+    for (let i = 0; i < 4; i++) at(B + i, T => A.kick(T, .9));
+    if (b >= 6) { at(B + 1, T => A.snareBig(T, .6)); at(B + 3, T => A.snareBig(T, .6)); }
+    for (let i = 0; i < 8; i++) at(B + i * .5, T => A.hat(T, .1));
+  }
+  if (b === 10) for (let i = 0; i < 8; i++) at(B + i * .5, T => A.snareBig(T, .3 + i * .04));
+  if (b === 11) for (let i = 0; i < 16; i++) { at(B + i * .25, T => A.snareBig(T, .35 + i * .03)); at(B + i * .25, T => A.kickTight(T, .5)); }
+  if (b === 10 || b === 34) at(B, T => A.riser(T, BAR * 2));
+  if (b === 12 || b === 36 || b === 52) at(B, T => A.crash(T));
+  if (b === 54) at(B, T => { A.kick(T); A.crash(T); A.chug(T, 40, BAR * 2, .5, true); });
+  // guitars: gallop (8th + two 16ths) in the drops, open chord on each downbeat
+  if (drop) for (let i = 0; i < 4; i++) {
+    if (i === 0) at(B, T => A.chug(T, c.root, SPB * .9, .5, true));
+    else at(B + i, T => A.chug(T, c.root, SPB * .22, .48));
+    at(B + i + .5, T => A.chug(T, c.root, SPB * .2, .4)); at(B + i + .75, T => A.chug(T, c.root, SPB * .2, .4));
+  }
+  if (s === 'build' && b >= 8) for (let i = 0; i < 8; i++) at(B + i * .5, T => A.chug(T, c.root, SPB * .3, .3 + (b - 8) * .06));
+  if (s === 'outro' && b < 54) at(B, T => A.chug(T, c.root, BAR * .9, .45, true));
+  // bass follows the guitar roots
+  if (drop || (s === 'build' && b >= 8) || (s === 'outro' && b < 54)) for (let i = 0; i < 8; i++) at(B + i * .5, T => A.bass(T, c.root - 12, SPB * .42, i % 2 ? .3 : .42));
+  if (s === 'break') at(B, T => A.sub(T, c.root - 12, BAR));
+  if (b === 54) at(B, T => A.sub(T, 28, BAR * 2));
+  // clean chip arpeggio: intro, breakdown, and a toll on the intro downbeats
+  if (s === 'intro' || s === 'break') for (let i = 0; i < 16; i++) {
+    const m = c.pad[[0, 1, 2, 1][i % 4]] + 12 + (i >= 8 ? 12 : 0);
+    at(B + i * .25, T => A.arp(T, m, s === 'intro' ? 700 + b * 220 : 1500, .08));
+  }
+  if (s === 'intro') at(B, T => A.click(T, true, .18));
+}
 function setSong(i) {
   songIdx = (i + SONGS.length) % SONGS.length; SONG = SONGS[songIdx];
   applySong();
@@ -369,6 +436,10 @@ const A = {
     const len = ctx.sampleRate * 2.8, ir = ctx.createBuffer(2, len, ctx.sampleRate);
     for (let ch = 0; ch < 2; ch++) { const x = ir.getChannelData(ch); for (let i = 0; i < len; i++) x[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3.2); }
     this.ir = ir;
+    // distortion curve for the 8-bit "guitars": hard tanh clip with a little extra bite
+    const cn = 2048, curve = new Float32Array(cn);
+    for (let i = 0; i < cn; i++) { const x = i / (cn - 1) * 2 - 1; curve[i] = .85 * Math.tanh(10 * x) + .15 * Math.tanh(30 * x); }
+    this.curve = curve;
     this.freqData = new Uint8Array(this.analyser.frequencyBinCount);
   },
   playBuffer(buf, when, from = 0, loop = null) { // imported audio; routed via the lead shelf so holds brighten it
@@ -404,6 +475,10 @@ const A = {
     const conv = ctx.createConvolver(); conv.buffer = this.ir;
     const rev = this.rev = ctx.createGain(); const rOut = ctx.createGain(); rOut.gain.value = .32;
     rev.connect(conv); conv.connect(rOut); rOut.connect(bus);
+    // guitar amp: drive -> cut the fizz and the mud -> bus
+    const ws = ctx.createWaveShaper(); ws.curve = this.curve; ws.oversample = '4x';
+    this.driveIn = this.gain(1); const ampHp = this.filt('highpass', 90, .7), ampLp = this.filt('lowpass', 4800, .7), ampOut = this.gain(.3);
+    this.driveIn.connect(ws); ws.connect(ampHp); ampHp.connect(ampLp); ampLp.connect(ampOut); ampOut.connect(bus);
     const dly = this.dly = ctx.createGain(); const dl = ctx.createDelay(2); dl.delayTime.value = SPB * .75;
     const fb = ctx.createGain(); fb.gain.value = .36; const lp = ctx.createBiquadFilter(); lp.frequency.value = 2400;
     const dOut = ctx.createGain(); dOut.gain.value = .28;
@@ -509,6 +584,41 @@ const A = {
     o.frequency.exponentialRampToValueAtTime(38, t + .65); f.frequency.exponentialRampToValueAtTime(160, t + .65);
     g.gain.setValueAtTime(.2, t); g.gain.exponentialRampToValueAtTime(.001, t + .7);
     o.connect(f); f.connect(g); g.connect(this.bus); this.whoosh(false);
+  },
+  // ---- OBSIDIAN voices ----
+  chug(t, m, dur, v = .45, open = false) { // power chord (root, fifth, octave) into the amp; palm-muted unless open
+    const end = t + dur + .07, f = this.filt('lowpass', open ? 3200 : 1600, 1.2), g = this.gain(0);
+    if (!open) { f.frequency.setValueAtTime(1700, t); f.frequency.exponentialRampToValueAtTime(380, t + dur); }
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(v, t + .004);
+    g.gain.exponentialRampToValueAtTime(v * (open ? .55 : .12), t + dur); g.gain.linearRampToValueAtTime(0, t + dur + .05);
+    [[m, 'sawtooth', -7], [m + 7, 'square', 5], [m + 12, 'sawtooth', 9]].forEach(([x, ty, d]) => this.osc(ty, this.mtof(x), t, end, d).connect(f));
+    f.connect(g); g.connect(this.driveIn);
+  },
+  shred(t, m, dur, v = .13) { // distorted chip lead with vibrato on long notes
+    const rel = .12, end = t + dur + rel + .05, pre = this.gain(.6), f = this.filt('lowpass', 3000, 2), lp = this.filt('lowpass', 5200, .7), g = this.gain(0);
+    const ws = this.ctx.createWaveShaper(); ws.curve = this.curve;
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(v, t + .01);
+    g.gain.setValueAtTime(v, t + Math.max(dur, .02)); g.gain.exponentialRampToValueAtTime(.0001, t + dur + rel);
+    const oscs = [this.osc('square', this.mtof(m), t, end, -6), this.osc('sawtooth', this.mtof(m), t, end, 6)];
+    oscs.forEach(o => o.connect(pre)); pre.connect(f); f.connect(ws); ws.connect(lp); lp.connect(g);
+    if (dur > .3) {
+      const lfo = this.osc('sine', 6.2, t, end), lg = this.gain(0);
+      lg.gain.setValueAtTime(0, t + .12); lg.gain.linearRampToValueAtTime(32, t + dur);
+      lfo.connect(lg); oscs.forEach(o => lg.connect(o.detune));
+    }
+    const rs = this.gain(.25); g.connect(this.leadBus); g.connect(this.dly); g.connect(rs); rs.connect(this.rev);
+  },
+  kickTight(t, v = .8) { // short double-bass kick
+    const o = this.osc('sine', 150, t, t + .16), g = this.gain(0);
+    o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(48, t + .06);
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(v, t + .003); g.gain.exponentialRampToValueAtTime(.001, t + .14);
+    o.connect(g); g.connect(this.bus); this.nz(t, .015, 'highpass', 3000, .5, v * .25);
+  },
+  snareBig(t, v = .7) { // noise crack + tonal body
+    this.nz(t, .2, 'bandpass', 2200, .6, v, [this.rev]);
+    const o = this.osc('triangle', 210, t, t + .13), g = this.gain(0);
+    o.frequency.setValueAtTime(210, t); o.frequency.exponentialRampToValueAtTime(150, t + .1);
+    g.gain.setValueAtTime(v * .6, t); g.gain.exponentialRampToValueAtTime(.001, t + .11); o.connect(g); g.connect(this.bus);
   },
   stamp() { // grade lands: deep thump straight into the master (the song bus is fading out)
     const t = this.ctx.currentTime, o = this.osc('sine', 130, t, t + .5), g = this.gain(0);
@@ -909,6 +1019,45 @@ let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 214748364
 const STARS = Array.from({ length: 110 }, () => ({ x: rnd(), y: rnd() * .95, r: rnd() < .15 ? 2 : 1, b: .3 + rnd() * .7, sp: .5 + rnd() * 2, ph: rnd() * 6 }));
 function ridge(n, rough) { const a = []; let v = .4; for (let i = 0; i <= n; i++) { v += (rnd() - .5) * rough; v = clamp(v, .05, 1); const edge = Math.abs(i / n - .5) * 2; a.push(v * (.25 + edge * .85)); } return a; }
 const MT_FAR = ridge(70, .5), MT_NEAR = ridge(46, .7);
+function spikes(n) { const a = []; for (let i = 0; i <= n; i++) { const edge = Math.abs(i / n - .5) * 2; a.push((i % 2 ? .35 + rnd() * .65 : rnd() * .2) * (.2 + edge * .95)); } return a; }
+const MT_SPIKE = spikes(40); // obsidian shards for the dark level
+// level themes: everything the world draws that isn't the song palette
+const THEMES = {
+  neon: { sky: ['#010208', '#030a1b', '#0b2442'], floor: ['#061426', '#01050c', '#000'], star: [150, 215, 255], stars: 1, mtnFill: '#02060e', road: 'rgba(0,4,12,.88)' },
+  dark: { sky: ['#000000', '#070103', '#26040a'], floor: ['#170306', '#040001', '#000'], star: [255, 150, 140], stars: .35, mtnFill: '#050002', road: 'rgba(7,0,2,.9)', spikes: true, lightning: true, embers: true },
+};
+const TH = () => THEMES[SONG.theme] || THEMES.neon;
+// lightning + embers (dark theme)
+let bolt = null, embers = [], frameDt = 0;
+function strike() {
+  const x0 = W * (.15 + Math.random() * .7), pts = [[x0, -10]]; let x = x0;
+  for (let y = 0; y < horY * .92; y += horY / 12) { x += (Math.random() - .5) * W * .06; pts.push([x, y + horY / 12]); }
+  const fork = pts.slice(4, 8).map(([px, py], i) => [px + (i + 1) * W * .02 * (Math.random() < .5 ? -1 : 1), py + i * 4]);
+  bolt = { pts, fork, life: 1 };
+}
+function drawStorm() {
+  if (!bolt) return;
+  bolt.life -= frameDt * 3.2; if (bolt.life <= 0) { bolt = null; return; }
+  const a = bolt.life * (.55 + .45 * Math.random()); // flicker
+  g.fillStyle = `rgba(255,210,220,${a * .16})`; g.fillRect(0, 0, W, horY); // sky flash
+  g.globalCompositeOperation = 'lighter';
+  glowPath(bolt.pts, mix(WHITE, P, .35), 2.2, a); glowPath(bolt.fork, mix(WHITE, P, .5), 1.2, a * .7);
+  g.globalCompositeOperation = 'source-over';
+}
+function drawEmbers(live, inten) {
+  if (!TH().embers) { embers.length = 0; return; }
+  const rate = (live ? 10 + 25 * inten : 14) * frameDt, n = Math.floor(rate) + (Math.random() < rate % 1 ? 1 : 0); // embers per second
+  for (let i = 0; i < n && embers.length < 220; i++) embers.push({ x: Math.random() * W, y: H + 4, vx: (Math.random() - .5) * 24, vy: -(40 + Math.random() * 90), life: 1, r: 1.4 + Math.random() * 2, ph: Math.random() * 6 });
+  g.globalCompositeOperation = 'lighter';
+  for (const e of embers) {
+    e.life -= frameDt * .22; e.x += (e.vx + Math.sin(e.ph += frameDt * 2) * 12) * frameDt; e.y += e.vy * frameDt;
+    const a = Math.max(0, e.life), gb = 110 + (e.r * 25 | 0);
+    g.fillStyle = `rgba(255,${gb},40,${a * .22})`; g.fillRect(e.x - e.r, e.y - e.r, e.r * 3, e.r * 3); // soft halo
+    g.fillStyle = `rgba(255,${gb + 40},90,${a * .9})`; g.fillRect(e.x, e.y, e.r, e.r);
+  }
+  g.globalCompositeOperation = 'source-over';
+  embers = embers.filter(e => e.life > 0 && e.y > -10);
+}
 
 function sectionInfo(t) {
   const bar = Math.floor(t / BAR), s = bar < 0 ? 'intro' : bar >= BARS ? 'outro' : sectionOf(bar);
@@ -927,18 +1076,20 @@ function poly(pts) { g.beginPath(); g.moveTo(pts[0][0], pts[0][1]); for (let i =
 
 function drawSky(t, pulse, inten) {
   const sky = g.createLinearGradient(0, 0, 0, horY);
-  sky.addColorStop(0, '#010208'); sky.addColorStop(.65, '#030a1b'); sky.addColorStop(1, '#0b2442');
+  const th = TH();
+  sky.addColorStop(0, th.sky[0]); sky.addColorStop(.65, th.sky[1]); sky.addColorStop(1, th.sky[2]);
   g.fillStyle = sky; g.fillRect(0, 0, W, horY + 1);
   const fl = g.createLinearGradient(0, horY, 0, H);
-  fl.addColorStop(0, '#061426'); fl.addColorStop(.22, '#01050c'); fl.addColorStop(1, '#000');
+  fl.addColorStop(0, th.floor[0]); fl.addColorStop(.22, th.floor[1]); fl.addColorStop(1, th.floor[2]);
   g.fillStyle = fl; g.fillRect(0, horY, W, H - horY);
   g.globalCompositeOperation = 'lighter';
-  for (const s of STARS) { const a = (.25 + .6 * Math.sin(t * s.sp + s.ph) ** 2) * s.b; g.fillStyle = `rgba(150,215,255,${a})`; g.fillRect(s.x * W, s.y * horY * .9, s.r, s.r); }
+  for (const s of STARS) { const a = (.25 + .6 * Math.sin(t * s.sp + s.ph) ** 2) * s.b; g.fillStyle = rgba(th.star, a * th.stars); g.fillRect(s.x * W, s.y * horY * .9, s.r, s.r); }
   // horizon bloom
   g.save(); g.translate(cx, horY); g.scale(1, .32);
   const R = W * .65, hg = g.createRadialGradient(0, 0, 0, 0, 0, R);
   hg.addColorStop(0, rgba(S, .3 + .2 * pulse * inten + flare * .5)); hg.addColorStop(.25, rgba(P, .13 + .1 * pulse * inten + flare * .2)); hg.addColorStop(1, 'rgba(0,0,0,0)');
   g.fillStyle = hg; g.fillRect(-R, -R, R * 2, R * 2); g.restore();
+  drawStorm(); // lightning sits behind the spectrum and mountains
   // spectrum skyline
   const bins = 48, bw = W / 2 / bins;
   let fd = null; if (A.analyser && state !== 'title') { A.analyser.getByteFrequencyData(A.freqData); fd = A.freqData; }
@@ -954,14 +1105,15 @@ function drawSky(t, pulse, inten) {
   const mtn = (arr, hScale, col, a) => {
     const step = W / (arr.length - 1), pts = arr.map((v, i) => [i * step, horY - v * hScale]);
     g.beginPath(); g.moveTo(0, horY); pts.forEach(p => g.lineTo(p[0], p[1])); g.lineTo(W, horY); g.closePath();
-    g.fillStyle = '#02060e'; g.fill();
+    g.fillStyle = th.mtnFill; g.fill();
     g.globalCompositeOperation = 'lighter';
     g.beginPath(); pts.forEach((p, i) => i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]));
     g.strokeStyle = rgba(col, a * .25); g.lineWidth = 5; g.stroke(); g.strokeStyle = rgba(col, a); g.lineWidth = 1.2; g.stroke();
     g.globalCompositeOperation = 'source-over';
   };
   mtn(MT_FAR, horY * .2, S, .45);
-  mtn(MT_NEAR, horY * .13, P, .6 + .3 * pulse * inten);
+  if (th.spikes) mtn(MT_SPIKE, horY * .3, P, .65 + .35 * pulse * inten);
+  else mtn(MT_NEAR, horY * .13, P, .6 + .3 * pulse * inten);
   g.globalCompositeOperation = 'lighter';
   glowLine(0, horY, W, horY, mix(S, WHITE, .35 + flare * .5), 1.3 * (1 + flare * 2.5), Math.min(1, .7 + .3 * pulse * inten + flare));
   if (flare > .01) { // anamorphic lens streak on the horizon
@@ -1017,7 +1169,7 @@ function spawnStreak(t) { // fever: fast short light streaks rushing past
 function drawRoad(t, pulse, inten, live) {
   const half = roadW / 2, ds = dSpan(dBottom, 60, 28);
   const Lp = path(-half, ds), Rp = path(half, ds);
-  g.fillStyle = 'rgba(0,4,12,.88)'; fillBand(Lp, Rp);
+  g.fillStyle = TH().road; fillBand(Lp, Rp);
   g.globalCompositeOperation = 'lighter';
   if (feverT > .01) { // energised road surface
     const fg = g.createLinearGradient(0, H, 0, horY);
@@ -1785,7 +1937,7 @@ function frame(now) {
   }
 }
 function render(now) {
-  const dt = clamp((now - lastNow) / 1000, 0, .05); lastNow = now;
+  const dt = clamp((now - lastNow) / 1000, 0, .05); lastNow = now; frameDt = dt;
   if (!(W > 0 && H > 0)) { schedule(); return; } // hidden / zero-size viewport: keep audio going, skip drawing
   const live = state === 'play' || state === 'pause';
   const t = live || (state === 'title' && preview) ? songTime() : now / 1000; // title visuals pulse with the preview
@@ -1797,7 +1949,8 @@ function render(now) {
   // section events
   if (info.bar !== lastBar) {
     lastBar = info.bar;
-    if (live && SONG.drops.includes(info.bar)) { dropFlash = 1; shake = 10; punch = 1; dropBoost = 1; flare = 1; }
+    if (live && SONG.drops.includes(info.bar)) { dropFlash = 1; shake = 10; punch = 1; dropBoost = 1; flare = 1; if (TH().lightning) strike(); }
+    else if (TH().lightning && Math.random() < (info.s === 'drop' || info.s === 'drop2' ? .45 : info.s === 'title' ? .3 : .12)) strike();
     if (info.s === 'drop' || info.s === 'drop2') { spawnCycle(t); if (Math.random() < .6) spawnCycle(t); }
     else if (info.s === 'title' || info.s === 'build' || Math.random() < .4) spawnCycle(t);
   }
@@ -1825,6 +1978,7 @@ function render(now) {
   if (fly > 0) { const z = 1 + fly * .45; g.translate(cx, H * .55); g.rotate(fly * .14); g.scale(z, z); g.translate(-cx, -H * .55); }
   drawSky(t, pulse, info.inten);
   drawFloor(t, pulse, info.inten);
+  drawEmbers(live, info.inten);
   drawRoad(t, pulse, info.inten, live);
   if (live) { drawNotes(t); }
   // trail ignites as the music begins (title/results: always lit)
