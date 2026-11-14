@@ -21,19 +21,29 @@ function bloom(k) {
   g.restore();
 }
 let W, H, DPR, cx, horY, hitY, roadW, laneW, dBottom;
+// phones: notch / Dynamic Island / home bar insets (from the #safe probe, which is padded with env(safe-area-inset-*))
+const SAFE = { t: 0, r: 0, b: 0, l: 0 };
+const TOUCH = matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0 && !matchMedia('(pointer: fine)').matches;
+function readSafe() {
+  const cs = getComputedStyle($('safe'));
+  SAFE.t = parseFloat(cs.paddingTop) || 0; SAFE.r = parseFloat(cs.paddingRight) || 0;
+  SAFE.b = parseFloat(cs.paddingBottom) || 0; SAFE.l = parseFloat(cs.paddingLeft) || 0;
+}
 function resize() {
-  DPR = Math.min(2, window.devicePixelRatio || 1); W = innerWidth; H = innerHeight;
+  DPR = Math.min(2, window.devicePixelRatio || 1); W = innerWidth; H = innerHeight; readSafe();
   cv.width = W * DPR; cv.height = H * DPR; g.setTransform(DPR, 0, 0, DPR, 0, 0);
   BL.forEach(b => { b.c.width = Math.max(1, Math.ceil(W / b.f)); b.c.height = Math.max(1, Math.ceil(H / b.f)); });
-  cx = W / 2; hitY = H * .84;
-  roadW = Math.min(W * .78, H * .7, 620); laneW = roadW / 4;
+  // on touch screens the hit line sits higher, clear of the home bar and the bottom edge where thumbs can't reach comfortably
+  const usable = H - SAFE.b;
+  cx = W / 2; hitY = TOUCH ? usable * (H > W ? .74 : .78) : H * .84;
+  roadW = Math.min(W * (TOUCH && H > W ? .92 : .78), H * .7, 620); laneW = roadW / 4; // wider lanes for thumbs on phones
   setHorizon(0);
 }
 function setHorizon(bob) {
   horY = H * .33 + bob;
   const sB = (H + 10 - horY) / (hitY - horY); dBottom = (1 / sB - 1) / K;
 }
-addEventListener('resize', resize); resize();
+addEventListener('resize', resize); addEventListener('orientationchange', () => setTimeout(resize, 250)); resize();
 
 // ---- the wave: rolling hills fixed to the ground, zero at the hit line ----
 // WAVE_UP = hill height, WAVE_SIDE = sideways sway (0 = off). One crest reaches the player every 2 bars.
@@ -443,7 +453,7 @@ function drawReceptors() {
       g.fillStyle = gr; g.fillRect(xl, top, xr - xl, hitY - top);
     }
     g.globalCompositeOperation = 'source-over';
-    g.fillStyle = rgba(c, .5 + .5 * p); g.fillText(laneLabels()[l], (q[0][0] + q[1][0]) / 2, hitY + 1); // label inside the pad
+    if (inputMode !== 'touch') g.fillStyle = rgba(c, .5 + .5 * p), g.fillText(laneLabels()[l], (q[0][0] + q[1][0]) / 2, hitY + 1); // label inside the pad
   }
 }
 
@@ -504,20 +514,22 @@ function drawHUD(t) {
   // score / acc / multiplier
   g.font = '700 22px Orbitron, sans-serif'; g.textAlign = 'left'; g.textBaseline = 'top';
   g.shadowColor = 'rgba(0,234,255,.8)'; g.shadowBlur = 12; g.fillStyle = '#e8fdff';
-  g.fillText(Math.round(score).toString().padStart(7, '0'), 20, 18);
+  const hx = 20 + SAFE.l, hy = 18 + SAFE.t, rx = W - SAFE.r - 66;
+  g.fillText(Math.round(score).toString().padStart(7, '0'), hx, hy);
   g.shadowBlur = 0; g.font = '500 12px Orbitron, sans-serif'; g.fillStyle = 'rgba(140,210,235,.85)';
   const acc = resolved ? accSum / resolved * 100 : 100;
-  g.fillText(`ACC ${acc.toFixed(1)}%`, 21, 48);
+  g.fillText(`ACC ${acc.toFixed(1)}%`, hx + 1, hy + 30);
   const m = mult();
   g.textAlign = 'right'; g.font = '900 22px Orbitron, sans-serif';
   g.shadowColor = 'rgba(255,150,40,.9)'; g.shadowBlur = 12; g.fillStyle = m > 1 ? '#ffb24a' : 'rgba(255,178,74,.4)';
-  g.fillText('×' + m, W - 66, 18); g.shadowBlur = 0;
-  if (feverT > .05) glowText('FEVER', W - 92, 56, '900 14px Orbitron, sans-serif', [255, 190, 90], feverT * (.65 + .35 * Math.sin(performance.now() / 80)), 14);
+  g.fillText('×' + m, rx, hy); g.shadowBlur = 0;
+  if (feverT > .05) glowText('FEVER', rx - 26, hy + 38, '900 14px Orbitron, sans-serif', [255, 190, 90], feverT * (.65 + .35 * Math.sin(performance.now() / 80)), 14);
   // progress
   const prog = clamp(t / lastEnd, 0, 1), px1 = cx - roadW / 2, pw = roadW;
-  g.fillStyle = 'rgba(0,180,255,.15)'; g.fillRect(px1, 12, pw, 2);
+  const py = 12 + SAFE.t;
+  g.fillStyle = 'rgba(0,180,255,.15)'; g.fillRect(px1, py - 1, pw, 2);
   g.globalCompositeOperation = 'lighter';
-  glowLine(px1, 13, px1 + pw * prog, 13, [0, 230, 255], 2, .9);
+  glowLine(px1, py, px1 + pw * prog, py, [0, 230, 255], 2, .9);
   g.globalCompositeOperation = 'source-over';
   // countdown
   if (t < 0) {
@@ -535,7 +547,7 @@ function drawHUD(t) {
     } else banner = null;
   }
   // timing bar: where your recent hits landed (left = early, right = late)
-  const tbW = Math.min(180, roadW * .5), tbY = H - 14, now = performance.now(), hw = tbW / 2;
+  const tbW = Math.min(180, roadW * .5), tbY = H - 14 - SAFE.b, now = performance.now(), hw = tbW / 2;
   g.fillStyle = 'rgba(255,160,40,.3)'; g.fillRect(cx - hw, tbY - 1, tbW, 2);
   g.fillStyle = 'rgba(60,150,255,.55)'; g.fillRect(cx - hw * WIN.great / WIN.good, tbY - 1, tbW * WIN.great / WIN.good, 2);
   g.fillStyle = 'rgba(0,234,255,.9)'; g.fillRect(cx - hw * WIN.perfect / WIN.good, tbY - 1, tbW * WIN.perfect / WIN.good, 2);

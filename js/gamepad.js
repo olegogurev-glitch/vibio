@@ -17,7 +17,7 @@ const bindName = (bd, std) => bd.t === 'b' ? (std && STD_NAMES.b[bd.i]) || 'B' +
 let padLabels = ['L2', 'L↓', 'R↓', 'R2'];
 let inputMode = 'keys'; // last device used: decides the lane labels and whether to rumble
 addEventListener('keydown', () => { inputMode = 'keys'; }, true);
-addEventListener('pointerdown', () => { inputMode = 'keys'; }, true);
+addEventListener('pointerdown', e => { inputMode = e.pointerType === 'touch' ? 'touch' : 'keys'; }, true);
 const laneLabels = () => inputMode === 'pad' ? padLabels : KEYLBL;
 const curPad = () => { const p = navigator.getGamepads ? navigator.getGamepads() : []; return PAD.idx != null ? p[PAD.idx] : null; };
 
