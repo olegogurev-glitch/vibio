@@ -24,10 +24,24 @@ let W, H, DPR, cx, horY, hitY, roadW, laneW, dBottom;
 // phones: notch / Dynamic Island / home bar insets (from the #safe probe, which is padded with env(safe-area-inset-*))
 const SAFE = { t: 0, r: 0, b: 0, l: 0 };
 const TOUCH = matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0 && !matchMedia('(pointer: fine)').matches;
+const SAFE_CSS = 'position:fixed;visibility:hidden;pointer-events:none;padding:env(safe-area-inset-top,0) env(safe-area-inset-right,0) env(safe-area-inset-bottom,0) env(safe-area-inset-left,0)';
+const insets = el => { const cs = el.ownerDocument.defaultView.getComputedStyle(el); return [cs.paddingTop, cs.paddingRight, cs.paddingBottom, cs.paddingLeft].map(v => parseFloat(v) || 0); };
 function readSafe() {
-  const cs = getComputedStyle($('safe'));
-  SAFE.t = parseFloat(cs.paddingTop) || 0; SAFE.r = parseFloat(cs.paddingRight) || 0;
-  SAFE.b = parseFloat(cs.paddingBottom) || 0; SAFE.l = parseFloat(cs.paddingLeft) || 0;
+  let [t, r, b, l] = insets($('safe'));
+  // inside an iframe (e.g. a game portal) env() reads 0, so take the host page's insets where they overlap the frame
+  try {
+    const fe = window.frameElement;
+    if (fe) {
+      const pd = parent.document; let pr = pd.getElementById('vibio-safe');
+      if (!pr) { pr = pd.createElement('div'); pr.id = 'vibio-safe'; pr.style.cssText = SAFE_CSS; pd.body.appendChild(pr); }
+      const [pt, prr, pb, pl] = insets(pr), fr = fe.getBoundingClientRect();
+      t = Math.max(t, pt - fr.top); b = Math.max(b, pb - (parent.innerHeight - fr.bottom));
+      l = Math.max(l, pl - fr.left); r = Math.max(r, prr - (parent.innerWidth - fr.right));
+    }
+  } catch (e) { /* cross-origin parent: keep our own values */ }
+  Object.assign(SAFE, { t, r, b, l });
+  const st = document.documentElement.style; // the CSS uses these instead of env() so menus get the same insets
+  st.setProperty('--st', t + 'px'); st.setProperty('--sr', r + 'px'); st.setProperty('--sb', b + 'px'); st.setProperty('--sl', l + 'px');
 }
 function resize() {
   DPR = Math.min(2, window.devicePixelRatio || 1); W = innerWidth; H = innerHeight; readSafe();
