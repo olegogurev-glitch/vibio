@@ -428,7 +428,7 @@ const A = {
    GAME STATE
    ========================================================= */
 const WIN = { perfect: .045, great: .09, good: .135 };
-const LEAD_IN = 2.4, K = 3.6, BASE_LOOK = 1.55;
+const LEAD_IN = 3.6, FLY = 1.6, K = 3.6, BASE_LOOK = 1.55; // lead-in = camera fly-in (FLY s) + count-in
 let speed = 1; try { speed = Math.min(2, Math.max(.6, +localStorage.getItem('vibio.speed') || 1)); } catch (e) { }
 let LOOK = BASE_LOOK / speed; // seconds a note is visible before the hit line
 function setSpeed(dv) {
@@ -519,6 +519,7 @@ function startGame() {
   fever = false; feverT = 0; banner = null; hitLog = []; allHits = []; punch = dropBoost = flare = powerFx = palT = 0;
   if (document.activeElement) document.activeElement.blur(); // so SPACE can't re-trigger a hidden button
   evIdx = 0; startTime = A.ctx.currentTime + LEAD_IN;
+  A.whoosh(false); // camera swoops down
   state = 'play'; show(null);
 }
 const songTime = () => A.ctx.currentTime - startTime - latency - userOffset / 1000;
@@ -663,7 +664,7 @@ function addJudge(kind, diff) {
 }
 function press(l, lag = 0) {
   if (held[l]) return;
-  held[l] = true; pressFx[l] = 1;
+  held[l] = true; pressFx[l] = 1; bike.target = laneX(l);
   const t = songTime() - lag, arr = laneNotes[l];
   for (let i = lanePtr[l]; i < arr.length; i++) {
     const n = arr[i];
@@ -673,7 +674,7 @@ function press(l, lag = 0) {
     if (ad > WIN.good) continue;
     n.judged = true;
     addJudge(ad <= WIN.perfect ? 'PERFECT' : ad <= WIN.great ? 'GREAT' : 'GOOD', t - n.t);
-    hitFx(l, ad <= WIN.perfect ? 1 : .6);
+    hitFx(l, ad <= WIN.perfect ? 1 : .6); bike.flash = 1;
     if (n.hold) { n.holding = true; activeHold[l] = n; A.holdOn(true); } else n.done = true;
     break;
   }
@@ -1033,8 +1034,80 @@ function drawNotes(t) {
   }
 }
 
+/* ---------- light cycle ---------- */
+const bike = { X: 0, v: 0, target: 0, flash: 0, trail: [] };
+const TRAIL_MS = 650;
+function bikeUpdate(dt, live, t) {
+  if (!live) bike.target = Math.sin(t * .6) * laneW * 1.1 + Math.sin(t * 1.7) * laneW * .3; // idle weave on menus
+  const k = 220, c = 2 * Math.sqrt(k) * .9; // near-critically damped spring toward the last lane pressed
+  bike.v += ((bike.target - bike.X) * k - bike.v * c) * dt; bike.X += bike.v * dt;
+  bike.flash = Math.max(0, bike.flash - dt * 4);
+  const now = performance.now();
+  bike.trail.unshift({ X: bike.X, at: now });
+  while (bike.trail.length > 2 && now - bike.trail[bike.trail.length - 1].at > TRAIL_MS) bike.trail.pop();
+}
+function rrect(x, y, w, h, r) {
+  g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
+  g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
+}
+function glowStroke(col, w, a) { // stroke current path: wide soft pass + crisp pass
+  g.globalCompositeOperation = 'lighter';
+  g.strokeStyle = rgba(col, a * .3); g.lineWidth = w * 3.5; g.stroke();
+  g.strokeStyle = rgba(col, a); g.lineWidth = w; g.stroke();
+  g.globalCompositeOperation = 'source-over';
+}
+// rides below the hit line, seen from a chase cam; trail is a light wall running back toward the camera
+function drawBike(t, pulse, ignite, enter) {
+  if (!(H > 0) || !(hitY > horY)) return; // zero-size viewport (e.g. hidden pane): nothing to draw
+  const yB = hitY + (H - hitY) * .66, sB = (yB - horY) / (hitY - horY), dB = (1 / sB - 1) / K;
+  const col = P, hot = mix(P, WHITE, .45 + feverT * .3 + bike.flash * .3), tail = S;
+  const span = dBottom - .03 - dB;
+  g.save(); g.translate(0, enter * H * .35);
+  // trail wall
+  if (bike.trail.length > 1 && ignite > 0) {
+    const now = performance.now(), wallH = laneW * .26, tops = [], bots = [];
+    for (const p of bike.trail) {
+      const age = (now - p.at) / TRAIL_MS; if (age > ignite) break;
+      const [x, y, s] = proj(p.X, dB + span * age);
+      tops.push([x, y - wallH * s]); bots.push([x, y]);
+    }
+    if (tops.length > 1) {
+      g.globalCompositeOperation = 'lighter';
+      const gr = g.createLinearGradient(0, tops[0][1], 0, bots[0][1]);
+      gr.addColorStop(0, rgba(col, .5 + feverT * .2)); gr.addColorStop(1, rgba(col, .1));
+      g.fillStyle = gr; fillBand(tops, bots);
+      glowPath(tops, hot, 2, .9);
+      g.strokeStyle = rgba(col, .45); g.lineWidth = 1; g.beginPath(); tracePts(bots); g.stroke();
+      g.globalCompositeOperation = 'source-over';
+    }
+  }
+  // the bike
+  const [bx, by0, s] = proj(bike.X, dB);
+  const u = Math.min(laneW * s / 70, (H - hitY) / 66), by = by0 - pulse * 2.2 * u; // sized to fit under the hit line
+  const lean = clamp(bike.v / (laneW * 20), -.4, .4);
+  g.translate(bx, by); g.rotate(lean);
+  g.globalCompositeOperation = 'lighter'; // ground glow
+  g.save(); g.scale(1, .28);
+  const gg = g.createRadialGradient(0, 0, 0, 0, 0, 34 * u); gg.addColorStop(0, rgba(col, .55 + bike.flash * .3)); gg.addColorStop(1, rgba(col, 0));
+  g.fillStyle = gg; g.beginPath(); g.arc(0, 0, 34 * u, 0, 7); g.fill(); g.restore();
+  g.globalCompositeOperation = 'source-over';
+  // rear wheel, edge-on
+  rrect(-6 * u, -24 * u, 12 * u, 24 * u, 6 * u); g.fillStyle = '#02060c'; g.fill(); glowStroke(hot, 1.6 * u, 1);
+  g.beginPath(); g.moveTo(0, -20 * u); g.lineTo(0, -4 * u); glowStroke(col, 1.2 * u, .8);
+  // body / canopy
+  poly([[-16 * u, -15 * u], [-12 * u, -30 * u], [-5 * u, -36 * u], [5 * u, -36 * u], [12 * u, -30 * u], [16 * u, -15 * u], [9 * u, -8 * u], [-9 * u, -8 * u]]);
+  g.fillStyle = 'rgba(2,6,14,.96)'; g.fill(); glowStroke(col, 1.5 * u, .95);
+  // rider helmet
+  g.beginPath(); g.ellipse(0, -39 * u, 6 * u, 5 * u, 0, 0, 7); g.fillStyle = '#02050b'; g.fill(); glowStroke(hot, 1.2 * u, .9);
+  // light lines + tail light
+  g.beginPath(); g.moveTo(-13 * u, -22 * u); g.lineTo(13 * u, -22 * u); glowStroke(hot, 1.4 * u, 1);
+  g.beginPath(); g.moveTo(-11 * u, -29 * u); g.lineTo(-15 * u, -16 * u); g.moveTo(11 * u, -29 * u); g.lineTo(15 * u, -16 * u); glowStroke(col, 1 * u, .8);
+  g.beginPath(); g.moveTo(-7 * u, -12 * u); g.lineTo(7 * u, -12 * u); glowStroke(tail, 2.4 * u, 1);
+  g.restore();
+}
+
 function drawReceptors() {
-  g.font = '700 13px Orbitron, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.font = '700 11px Orbitron, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
   for (let l = 0; l < 4; l++) {
     const q = noteQuad(l, -.012, .024, .06), c = LC[l], p = pressFx[l];
     g.globalCompositeOperation = 'lighter';
@@ -1047,7 +1120,7 @@ function drawReceptors() {
       g.fillStyle = gr; g.fillRect(xl, top, xr - xl, hitY - top);
     }
     g.globalCompositeOperation = 'source-over';
-    g.fillStyle = rgba(c, .55 + .45 * p); g.fillText(KEYLBL[l], (q[0][0] + q[1][0]) / 2, hitY + 30);
+    g.fillStyle = rgba(c, .5 + .5 * p); g.fillText(KEYLBL[l], (q[0][0] + q[1][0]) / 2, hitY + 1); // label inside the pad
   }
 }
 
@@ -1139,7 +1212,7 @@ function drawHUD(t) {
     } else banner = null;
   }
   // timing bar: where your recent hits landed (left = early, right = late)
-  const tbW = Math.min(180, roadW * .5), tbY = Math.min(H - 12, hitY + 52), now = performance.now(), hw = tbW / 2;
+  const tbW = Math.min(180, roadW * .5), tbY = H - 14, now = performance.now(), hw = tbW / 2;
   g.fillStyle = 'rgba(255,160,40,.3)'; g.fillRect(cx - hw, tbY - 1, tbW, 2);
   g.fillStyle = 'rgba(60,150,255,.55)'; g.fillRect(cx - hw * WIN.great / WIN.good, tbY - 1, tbW * WIN.great / WIN.good, 2);
   g.fillStyle = 'rgba(0,234,255,.9)'; g.fillRect(cx - hw * WIN.perfect / WIN.good, tbY - 1, tbW * WIN.perfect / WIN.good, 2);
@@ -1158,7 +1231,14 @@ function drawHUD(t) {
 /* ---------- main loop ---------- */
 let lastNow = performance.now();
 function frame(now) {
-  const dt = Math.min(.05, (now - lastNow) / 1000); lastNow = now;
+  requestAnimationFrame(frame); // schedule first: one bad frame must never stop the loop
+  try { render(now); } catch (e) {
+    console.error(e); // reset canvas state so the next frame starts clean
+    g.setTransform(DPR, 0, 0, DPR, 0, 0); g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'; g.shadowBlur = 0;
+  }
+}
+function render(now) {
+  const dt = clamp((now - lastNow) / 1000, 0, .05); lastNow = now;
   const live = state === 'play' || state === 'pause';
   const t = live || (state === 'title' && preview) ? songTime() : now / 1000; // title visuals pulse with the preview
   if (state === 'play') update(t, dt);
@@ -1180,7 +1260,10 @@ function frame(now) {
   wave.phase = t * WAVE_W;
   wave.a = wave.amp * (1 + .12 * pulse);
   // camera pitch: horizon rises and dips as the hills pass under you
-  setHorizon(wave.amp * H * .03 * Math.cos(wave.phase + .6));
+  // fly-in: 1 = camera high above at song start, eases to 0 over FLY seconds
+  const flyK = live ? clamp(1 - (t + LEAD_IN) / FLY, 0, 1) : 0, fly = flyK * flyK * (3 - 2 * flyK);
+  setHorizon(wave.amp * H * .03 * Math.cos(wave.phase + .6) - fly * H * .3);
+  bikeUpdate(dt, state === 'play' || state === 'pause', t);
   // fever / drop / palette envelopes
   feverT += ((fever && state === 'play' ? 1 : 0) - feverT) * Math.min(1, dt * 3);
   palT += ((live && info.s === 'drop2' ? 1 : 0) - palT) * Math.min(1, dt * .8);
@@ -1191,10 +1274,13 @@ function frame(now) {
   g.save();
   if (shake > .1) { g.translate((Math.random() - .5) * shake, (Math.random() - .5) * shake); shake *= Math.pow(.02, dt); }
   if (punch > 0) { const z = 1 + .07 * punch * punch; g.translate(cx, horY); g.scale(z, z); g.translate(-cx, -horY); }
+  if (fly > 0) { const z = 1 + fly * .45; g.translate(cx, H * .55); g.rotate(fly * .14); g.scale(z, z); g.translate(-cx, -H * .55); }
   drawSky(t, pulse, info.inten);
   drawFloor(t, pulse, info.inten);
   drawRoad(t, pulse, info.inten, live);
   if (live) { drawNotes(t); }
+  // trail ignites as the music begins (title/results: always lit)
+  drawBike(t, pulse, live ? clamp((t + .25) / .6, 0, 1) : 1, fly);
   drawReceptors();
   drawFx(dt);
   if (live) drawHUD(t);
@@ -1202,6 +1288,7 @@ function frame(now) {
   bloom(.75 + feverT * .3 + dropBoost * .35 + flare * .2);
   g.save();
   if (powerFx > 0) { g.fillStyle = `rgba(255,30,50,${powerFx * .22})`; g.fillRect(0, 0, W, H); }
+  if (fly > 0) { g.fillStyle = `rgba(0,0,0,${fly * .85})`; g.fillRect(0, 0, W, H); } // fade up from black
   if (dropFlash > 0) { g.fillStyle = `rgba(160,240,255,${dropFlash * .35})`; g.fillRect(-20, -20, W + 40, H + 40); dropFlash = Math.max(0, dropFlash - dt * 2.2); }
   // vignette + scanlines
   const vg = g.createRadialGradient(cx, H * .55, Math.min(W, H) * .3, cx, H * .55, Math.max(W, H) * .8);
@@ -1209,7 +1296,6 @@ function frame(now) {
   g.fillStyle = vg; g.fillRect(0, 0, W, H);
   g.restore();
   schedule();
-  requestAnimationFrame(frame);
 }
 
 /* ---------- input ---------- */
