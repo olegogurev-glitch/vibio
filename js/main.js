@@ -136,7 +136,7 @@ let savedId = null; try { savedId = localStorage.getItem('vibio.song'); } catch 
 setSong(Math.max(0, SONGS.findIndex(s => s.id === savedId))); refreshTitle(); show('title');
 loadCustomSongs().then(() => { // imported songs arrive asynchronously (decode + analysis)
   const i = SONGS.findIndex(s => s.id === savedId);
-  if (state === 'title' && i >= 0 && SONGS[i].custom) { setSong(i); if (preview) startPreview(); }
+  if (!DAILY && state === 'title' && i >= 0 && SONGS[i].custom) { setSong(i); if (preview) startPreview(); }
   if (state === 'title') refreshTitle();
 });
 requestAnimationFrame(frame);

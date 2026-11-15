@@ -10,6 +10,7 @@ html,body{margin:0;height:100%;background:var(--bg);overflow:hidden;color:#cfeff
 .tag{font-family:Orbitron;font-size:clamp(11px,1.6vw,15px);letter-spacing:.55em;color:#8fdcff;opacity:.85;margin-top:-6px}
 .card{position:relative;border:1px solid rgba(0,234,255,.55);padding:18px 34px 16px;min-width:min(300px,80vw);background:linear-gradient(180deg,rgba(0,30,50,.55),rgba(0,8,18,.7));box-shadow:0 0 22px rgba(0,234,255,.25),inset 0 0 22px rgba(0,234,255,.12);clip-path:polygon(14px 0,100% 0,100% calc(100% - 14px),calc(100% - 14px) 100%,0 100%,0 14px)}
 .small{font-family:Orbitron;font-size:11px;letter-spacing:.35em;color:#6fb9d6}
+#tNum.daily{color:#ffd23a;text-shadow:0 0 10px rgba(255,210,58,.6)}
 .track{font-family:Orbitron;font-weight:700;font-size:clamp(24px,4vw,34px);letter-spacing:.18em;color:#fff;text-shadow:0 0 12px rgba(0,234,255,.8);margin:6px 0}
 .diff{display:flex;align-items:center;justify-content:center;gap:16px;margin:14px 0 8px}
 .diff button{background:none;border:1px solid rgba(0,234,255,.5);color:var(--cyan);width:34px;height:30px;font-size:14px;cursor:pointer;font-family:Orbitron}

@@ -19,6 +19,14 @@ const KEYLBL = ['D', 'F', 'J', 'K'];
 const KEYMAP = { KeyD: 0, KeyF: 1, KeyJ: 2, KeyK: 3 };
 const DIFFS = ['EASY', 'NORMAL', 'HARD'];
 let diffIdx = 1;
+// Daily challenge: ?daily=2026-11-15&track=blackice&diff=HARD (Pixo picks them from the date, the
+// same for every player). The title screen locks that track and difficulty; speed and timing
+// offset stay yours. Results still count for your own bests.
+const DAILY = (() => {
+  const q = new URLSearchParams(location.search), day = q.get('daily');
+  const song = SONGS.findIndex(s => !s.custom && s.id === q.get('track')), diff = DIFFS.indexOf(q.get('diff'));
+  return /^\d{4}-\d{2}-\d{2}$/.test(day || '') && song >= 0 && diff >= 0 ? { day, song, diff } : null;
+})();
 let state = 'title';
 let startTime = 0, latency = 0, evIdx = 0, lastEnd = 0;
 let notes = [], laneNotes = [[], [], [], []], lanePtr = [0, 0, 0, 0], activeHold = [null, null, null, null];
@@ -36,10 +44,11 @@ const evLag = e => clamp((performance.now() - e.timeStamp) / 1000, 0, .1);
 // Pixo (pixoarcade.com) runs the game in a frame and puts runs on its leaderboards: tell it when a
 // song on a built-in track starts and when it ends. Imported songs never count. Does nothing when
 // the game runs on its own.
-const pixoBoard = () => SONG.id + '-' + DIFFS[diffIdx].toLowerCase();
+const pixoBoard = () => (DAILY ? 'daily' : SONG.id + '-' + DIFFS[diffIdx].toLowerCase());
 function pixoRun(type, data) {
   if (window.parent === window || SONG.custom) return;
-  try { window.parent.postMessage({ pixo: type, board: pixoBoard(), ...data }, location.origin); } catch (e) { }
+  const day = DAILY && type === 'run-start' ? { day: DAILY.day } : {};
+  try { window.parent.postMessage({ pixo: type, board: pixoBoard(), ...day, ...data }, location.origin); } catch (e) { }
 }
 const rgba = (c, a) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
 const clamp = (x, a, b) => x < a ? a : x > b ? b : x;
@@ -49,12 +58,15 @@ const bestKey = d => 'vibio.best.' + (SONG.id === 'gridrunner' ? '' : SONG.id + 
 function loadBest(d) { try { return JSON.parse(localStorage.getItem(bestKey(d))) || null; } catch (e) { return null; } }
 function saveBest(d, v) { try { localStorage.setItem(bestKey(d), JSON.stringify(v)); } catch (e) { } }
 function refreshTitle() {
+  if (DAILY) { if (songIdx !== DAILY.song) setSong(DAILY.song); diffIdx = DAILY.diff; } // the challenge is fixed
   const d = DIFFS[diffIdx], dc = { EASY: '#5dffb0', NORMAL: '#ffa028', HARD: '#ff4d6a' }[d];
   $('diffName').textContent = d; $('diffName').style.color = dc; $('diffName').style.textShadow = `0 0 10px ${dc}`;
-  $('tNum').textContent = `TRACK ${String(songIdx + 1).padStart(2, '0')} / ${String(SONGS.length).padStart(2, '0')}`;
+  $('tNum').textContent = DAILY ? `DAILY CHALLENGE · ${DAILY.day}` : `TRACK ${String(songIdx + 1).padStart(2, '0')} / ${String(SONGS.length).padStart(2, '0')}`;
+  $('tNum').classList.toggle('daily', !!DAILY);
+  for (const id of ['tPrev', 'tNext', 'dPrev', 'dNext', 'importBtn', 'tDots']) $(id).style.visibility = DAILY ? 'hidden' : '';
   $('tName').textContent = SONG.title;
   $('tInfo').textContent = `${SONG.genre} · ${+SONG.bpm.toFixed(2)} BPM · ${fmtLen(SONG.custom ? SONG.buffer.duration : BARS * BAR)}`;
-  $('editBtn').style.display = $('delBtn').style.display = SONG.custom ? '' : 'none';
+  $('editBtn').style.display = $('delBtn').style.display = SONG.custom && !DAILY ? '' : 'none';
   $('tDots').innerHTML = SONGS.map((s, i) => `<i class="${i === songIdx ? 'on' : ''}"></i>`).join('');
   const b = loadBest(d); $('best').textContent = b ? `BEST ${b.score.toLocaleString()} · ${b.grade} · ${b.acc}%` : 'BEST —';
   $('offVal').textContent = fmtOff(userOffset);
@@ -84,6 +96,7 @@ function startPreview() {
 }
 function stopPreview() { if (preview && A.bus) { A.fadeOut(.3); A.stopBuffer(400); } preview = null; }
 function changeTrack(dir) {
+  if (DAILY) return; // the daily challenge fixes the track
   setSong(songIdx + dir); refreshTitle();
   const box = $('tBox'); box.classList.remove('swap'); void box.offsetWidth; box.classList.add('swap');
   startPreview();
@@ -150,7 +163,7 @@ function finish() {
   const acc = judgeable ? accSum / judgeable * 100 : 0, accR = Math.round(acc * 10) / 10;
   const grade = acc >= 95 ? 'S' : acc >= 90 ? 'A' : acc >= 80 ? 'B' : acc >= 70 ? 'C' : 'D';
   score = Math.round(score);
-  $('rDiff').textContent = DIFFS[diffIdx]; $('rSong').textContent = SONG.title;
+  $('rDiff').textContent = DIFFS[diffIdx] + (DAILY ? ' · DAILY' : ''); $('rSong').textContent = SONG.title;
   animateResults({ score, p: counts.p, g: counts.g, o: counts.o, m: counts.m, acc: accR, mc: maxCombo }, grade);
   drawHist(allHits);
   const best = loadBest(DIFFS[diffIdx]), isBest = !best || score > best.score;
