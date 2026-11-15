@@ -33,6 +33,14 @@ const mix = (a, b, k) => a.map((v, i) => Math.round(v + (b[i] - v) * k));
 let P = CYAN.slice(), S = ORANGE.slice(); // world palette (primary / secondary), swaps in drop 2
 const evLag = e => clamp((performance.now() - e.timeStamp) / 1000, 0, .1);
 
+// Pixo (pixoarcade.com) runs the game in a frame and puts runs on its leaderboards: tell it when a
+// song on a built-in track starts and when it ends. Imported songs never count. Does nothing when
+// the game runs on its own.
+const pixoBoard = () => SONG.id + '-' + DIFFS[diffIdx].toLowerCase();
+function pixoRun(type, data) {
+  if (window.parent === window || SONG.custom) return;
+  try { window.parent.postMessage({ pixo: type, board: pixoBoard(), ...data }, location.origin); } catch (e) { }
+}
 const rgba = (c, a) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
 const clamp = (x, a, b) => x < a ? a : x > b ? b : x;
 
@@ -111,6 +119,7 @@ function startGame() {
   if (!testing) A.whoosh(false); // camera swoops down
   if (SONG.custom) A.playBuffer(SONG.buffer, startTime - SONG.offset); // audio position 0 = song time -offset
   state = 'play'; show(null);
+  if (!testing) pixoRun('run-start');
 }
 const songTime = () => A.ctx.currentTime - startTime - latency - userOffset / 1000;
 
@@ -146,6 +155,7 @@ function finish() {
   drawHist(allHits);
   const best = loadBest(DIFFS[diffIdx]), isBest = !best || score > best.score;
   if (isBest) saveBest(DIFFS[diffIdx], { score, grade, acc: accR });
+  pixoRun('run-end', { score, detail: { acc: accR, grade, combo: maxCombo } });
   $('rBest').style.display = isBest ? 'block' : 'none';
   show('results');
 }
