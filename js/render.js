@@ -101,13 +101,26 @@ function ridge(n, rough) { const a = []; let v = .4; for (let i = 0; i <= n; i++
 const MT_FAR = ridge(70, .5), MT_NEAR = ridge(46, .7);
 function spikes(n) { const a = []; for (let i = 0; i <= n; i++) { const edge = Math.abs(i / n - .5) * 2; a.push((i % 2 ? .35 + rnd() * .65 : rnd() * .2) * (.2 + edge * .95)); } return a; }
 const MT_SPIKE = spikes(40); // obsidian shards for the dark level
+function peaks(n) { const a = []; for (let i = 0; i <= n; i++) { const edge = Math.abs(i / n - .5) * 2; a.push((i % 2 ? .55 + rnd() * .45 : .12 + rnd() * .25) * (.18 + edge * .9)); } return a; }
+const MT_PEAKS = peaks(22); // arctic range: broad peaks, snow-capped when drawn
+function dunes(n) { const a = [], p1 = rnd() * 6, p2 = rnd() * 6; for (let i = 0; i <= n; i++) { const x = i / n, edge = Math.abs(x - .5) * 2; a.push((.45 + .3 * Math.sin(x * 9 + p1) + .2 * Math.sin(x * 23 + p2)) * (.2 + edge * .85)); } return a; }
+const MT_DUNES = dunes(60); // seabed: smooth sand ridges
+// kelp: stalks rooted on the horizon toward the screen edges (the road's vanishing point stays clear)
+const KELP = Array.from({ length: 16 }, (_, i) => { const side = i % 2 ? 1 : -1; return { x: .5 + side * (.14 + rnd() * .36), h: .25 + rnd() * .5, ph: rnd() * 6, w: .8 + rnd() * .8 }; });
+// city skyline: blocks that rise toward the edges; windows come from a hash so they stay put
+const CITY = (() => { const a = []; let x = 0; while (x < 1) { const w = .018 + rnd() * .04, edge = Math.abs(x + w / 2 - .5) * 2; a.push({ x, w, h: (.15 + rnd() * .85) * (.12 + edge * .95), ant: rnd() < .18, seed: rnd() * 1000 }); x += w + rnd() * .006; } return a; })();
+const hash = (a, b) => { const s = Math.sin(a * 12.9898 + b * 78.233) * 43758.5453; return s - Math.floor(s); };
 // level themes: everything the world draws that isn't the song palette
+// ridge: near skyline shape · weather: particles · extras: sun / rays / aurora / lightning
 const THEMES = {
   neon: { sky: ['#010208', '#030a1b', '#0b2442'], floor: ['#061426', '#01050c', '#000'], star: [150, 215, 255], stars: 1, mtnFill: '#02060e', road: 'rgba(0,4,12,.88)' },
-  dark: { sky: ['#000000', '#070103', '#26040a'], floor: ['#170306', '#040001', '#000'], star: [255, 150, 140], stars: .35, mtnFill: '#050002', road: 'rgba(7,0,2,.9)', spikes: true, lightning: true, embers: true },
+  dark: { sky: ['#000000', '#070103', '#26040a'], floor: ['#170306', '#040001', '#000'], star: [255, 150, 140], stars: .35, mtnFill: '#050002', road: 'rgba(7,0,2,.9)', ridge: 'spikes', lightning: true, weather: 'embers' },
+  ocean: { sky: ['#00222e', '#00141f', '#003a48'], floor: ['#00303c', '#000d14', '#000'], star: [120, 255, 230], stars: .3, mtnFill: '#00121a', road: 'rgba(0,10,16,.88)', ridge: 'reef', rays: true, weather: 'bubbles' },
+  dusk: { sky: ['#0c0322', '#3a0f4a', '#a8325e'], floor: ['#2a0a2c', '#09020e', '#000'], star: [255, 210, 235], stars: .45, mtnFill: '#10041a', road: 'rgba(12,2,16,.9)', ridge: 'city', sun: true, weather: 'petals' },
+  arctic: { sky: ['#000308', '#02101f', '#0a3040'], floor: ['#0b2232', '#020810', '#000'], star: [210, 240, 255], stars: 1.1, mtnFill: '#030b16', road: 'rgba(2,8,16,.88)', ridge: 'peaks', aurora: true, weather: 'snow' },
 };
 const TH = () => THEMES[SONG.theme] || THEMES.neon;
-// lightning + embers (dark theme)
+// lightning + weather particles
 let bolt = null, embers = [], frameDt = 0;
 function strike() {
   const x0 = W * (.15 + Math.random() * .7), pts = [[x0, -10]]; let x = x0;
@@ -124,19 +137,112 @@ function drawStorm() {
   glowPath(bolt.pts, mix(WHITE, P, .35), 2.2, a); glowPath(bolt.fork, mix(WHITE, P, .5), 1.2, a * .7);
   g.globalCompositeOperation = 'source-over';
 }
-function drawEmbers(live, inten) {
-  if (!TH().embers) { embers.length = 0; return; }
-  const rate = (live ? 10 + 25 * inten : 14) * frameDt, n = Math.floor(rate) + (Math.random() < rate % 1 ? 1 : 0); // embers per second
-  for (let i = 0; i < n && embers.length < 220; i++) embers.push({ x: Math.random() * W, y: H + 4, vx: (Math.random() - .5) * 24, vy: -(40 + Math.random() * 90), life: 1, r: 1.4 + Math.random() * 2, ph: Math.random() * 6 });
+// weather particles per theme: embers / bubbles rise from the bottom, petals / snow fall from the top
+let weatherKind = null;
+function drawWeather(live, inten) {
+  const kind = TH().weather;
+  if (kind !== weatherKind) { embers.length = 0; weatherKind = kind; }
+  if (!kind) return;
+  const rise = kind === 'embers' || kind === 'bubbles';
+  const perSec = { embers: live ? 10 + 25 * inten : 14, bubbles: live ? 6 + 14 * inten : 9, petals: live ? 5 + 9 * inten : 7, snow: live ? 18 + 30 * inten : 24 }[kind];
+  const cap = { embers: 220, bubbles: 120, petals: 90, snow: 260 }[kind];
+  const rate = perSec * frameDt, n = Math.floor(rate) + (Math.random() < rate % 1 ? 1 : 0);
+  for (let i = 0; i < n && embers.length < cap; i++) {
+    const p = { x: Math.random() * W, y: rise ? H + 6 : -6, life: 1, ph: Math.random() * 6 };
+    if (kind === 'embers') Object.assign(p, { vx: (Math.random() - .5) * 24, vy: -(40 + Math.random() * 90), r: 1.4 + Math.random() * 2 });
+    if (kind === 'bubbles') Object.assign(p, { vx: 0, vy: -(30 + Math.random() * 70), r: 1.5 + Math.random() * 4 });
+    if (kind === 'petals') Object.assign(p, { x: Math.random() * W * 1.2 - W * .1, vx: 14 + Math.random() * 26, vy: 28 + Math.random() * 40, r: 2.5 + Math.random() * 2.5, spin: (Math.random() - .5) * 5 });
+    if (kind === 'snow') Object.assign(p, { vx: -6 - Math.random() * 10, vy: 22 + Math.random() * 46, r: 1 + Math.random() * 2 });
+    embers.push(p);
+  }
   g.globalCompositeOperation = 'lighter';
+  const fade = rise ? .22 : .12;
   for (const e of embers) {
-    e.life -= frameDt * .22; e.x += (e.vx + Math.sin(e.ph += frameDt * 2) * 12) * frameDt; e.y += e.vy * frameDt;
-    const a = Math.max(0, e.life), gb = 110 + (e.r * 25 | 0);
-    g.fillStyle = `rgba(255,${gb},40,${a * .22})`; g.fillRect(e.x - e.r, e.y - e.r, e.r * 3, e.r * 3); // soft halo
-    g.fillStyle = `rgba(255,${gb + 40},90,${a * .9})`; g.fillRect(e.x, e.y, e.r, e.r);
+    e.life -= frameDt * fade; e.ph += frameDt * 2;
+    e.x += (e.vx + Math.sin(e.ph) * (kind === 'bubbles' ? 18 : 12)) * frameDt; e.y += e.vy * frameDt;
+    const a = Math.max(0, Math.min(1, e.life * 2));
+    if (kind === 'embers') {
+      const gb = 110 + (e.r * 25 | 0);
+      g.fillStyle = `rgba(255,${gb},40,${a * .22})`; g.fillRect(e.x - e.r, e.y - e.r, e.r * 3, e.r * 3); // soft halo
+      g.fillStyle = `rgba(255,${gb + 40},90,${a * .9})`; g.fillRect(e.x, e.y, e.r, e.r);
+    } else if (kind === 'bubbles') {
+      g.strokeStyle = rgba(mix(S, WHITE, .5), a * .45); g.lineWidth = 1;
+      g.beginPath(); g.arc(e.x, e.y, e.r, 0, 7); g.stroke();
+      g.fillStyle = `rgba(255,255,255,${a * .5})`; g.fillRect(e.x - e.r * .45, e.y - e.r * .45, 1.2, 1.2); // glint
+    } else if (kind === 'petals') {
+      g.save(); g.translate(e.x, e.y); g.rotate(e.ph * e.spin * .5); g.scale(1, .45 + .4 * Math.sin(e.ph * 1.7)); // tumbling
+      g.fillStyle = rgba(mix(P, WHITE, .45), a * .55); g.beginPath(); g.ellipse(0, 0, e.r * 1.4, e.r, 0, 0, 7); g.fill();
+      g.restore();
+    } else {
+      g.fillStyle = `rgba(200,225,255,${a * .15})`; g.fillRect(e.x - e.r, e.y - e.r, e.r * 3, e.r * 3); // soft halo
+      g.fillStyle = `rgba(235,245,255,${a * .85})`; g.fillRect(e.x, e.y, e.r, e.r);
+    }
   }
   g.globalCompositeOperation = 'source-over';
-  embers = embers.filter(e => e.life > 0 && e.y > -10);
+  embers = embers.filter(e => e.life > 0 && e.y > -10 && e.y < H + 10);
+}
+// ocean: slow god rays slanting down from the surface
+function drawRays(t, pulse, inten) {
+  g.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < 6; i++) {
+    const x = W * (.08 + i * .17) + Math.sin(t * .23 + i * 1.7) * W * .05, w = W * (.03 + .025 * Math.sin(i * 2.3 + 1) ** 2);
+    const lean = W * .12, a = (.05 + .035 * Math.sin(t * .4 + i * 2.1) ** 2) * (1 + .5 * pulse * inten);
+    const gr = g.createLinearGradient(0, 0, 0, horY);
+    gr.addColorStop(0, rgba(mix(P, WHITE, .6), a)); gr.addColorStop(1, rgba(P, 0));
+    g.fillStyle = gr; g.beginPath(); g.moveTo(x - w / 2, 0); g.lineTo(x + w / 2, 0); g.lineTo(x + w * 1.6 + lean, horY); g.lineTo(x - w * 1.6 + lean, horY); g.closePath(); g.fill();
+  }
+  g.globalCompositeOperation = 'source-over';
+}
+// dusk: a big striped sun sinking into the horizon
+function drawSun(t, pulse, inten) {
+  const R = Math.min(W * .22, horY * .62), y0 = horY - R * .42;
+  g.save(); g.beginPath(); g.rect(0, 0, W, horY); g.clip();
+  g.globalCompositeOperation = 'lighter';
+  const halo = g.createRadialGradient(cx, y0, R * .6, cx, y0, R * 2.1);
+  halo.addColorStop(0, rgba(P, .22 + .1 * pulse * inten)); halo.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = halo; g.fillRect(cx - R * 2.2, y0 - R * 2.2, R * 4.4, R * 4.4);
+  g.globalCompositeOperation = 'source-over';
+  g.beginPath(); g.arc(cx, y0, R, 0, 7); g.clip();
+  const sg = g.createLinearGradient(0, y0 - R, 0, y0 + R);
+  sg.addColorStop(0, rgba(mix(S, WHITE, .1), .62)); sg.addColorStop(.55, rgba(mix(S, P, .5), .62)); sg.addColorStop(1, rgba(P, .62));
+  g.fillStyle = sg;
+  // solid top half, then bands that get thinner as the gaps between them grow; the bands scroll down slowly
+  g.fillRect(cx - R, y0 - R, R * 2, R);
+  const scroll = (t * .25) % 1;
+  for (let k = 0; k < 9; k++) {
+    const f = (k + scroll) / 9, yb = y0 + f * R, gap = 1.5 + f * R * .09;
+    g.fillRect(cx - R, yb, R * 2, R / 9 - gap);
+  }
+  g.restore();
+}
+// arctic: aurora curtains rippling across the sky
+function drawAurora(t, pulse, inten) {
+  g.globalCompositeOperation = 'lighter';
+  const n = Math.ceil(W / 12);
+  for (let r = 0; r < 3; r++) {
+    const col = r === 1 ? S : mix(P, S, r * .25), base = horY * (.3 + r * .13), amp = horY * (.06 + r * .02);
+    const bot = [], top = [];
+    for (let i = 0; i <= n; i++) {
+      const x = i / n * W, u = x / W;
+      const y = base + Math.sin(u * 5.5 + t * .22 + r * 2) * amp + Math.sin(u * 13 - t * .4 + r) * amp * .35;
+      const h = horY * (.14 + .1 * Math.sin(u * 8 + t * .3 + r * 1.3) ** 2) * (1 - r * .15);
+      bot.push([x, y]); top.push([x, y - h]);
+    }
+    const ymin = Math.min(...top.map(p => p[1])), ymax = Math.max(...bot.map(p => p[1]));
+    const a = (.3 - r * .06) * (.75 + .25 * Math.sin(t * .5 + r * 2)) * (1 + .35 * pulse * inten);
+    const gr = g.createLinearGradient(0, ymin, 0, ymax);
+    gr.addColorStop(0, rgba(col, 0)); gr.addColorStop(.6, rgba(col, a * .5)); gr.addColorStop(1, rgba(col, a));
+    g.fillStyle = gr; fillBand(bot, top);
+    // curtain folds: vertical rays of uneven height that drift along the ribbon
+    g.strokeStyle = gr; g.lineWidth = 2; g.beginPath();
+    for (let i = 0; i <= n; i++) {
+      const [x, y] = bot[i], k = .5 + .5 * Math.sin(i * 1.7 + t * 1.3 + r) * Math.sin(i * .43 - t * .7);
+      g.moveTo(x, y); g.lineTo(x, y - (y - top[i][1]) * (.6 + k * .9));
+    }
+    g.stroke();
+    glowPath(bot, col, 1, a * 1.1);
+  }
+  g.globalCompositeOperation = 'source-over';
 }
 
 function sectionInfo(t) {
@@ -169,6 +275,9 @@ function drawSky(t, pulse, inten) {
   const R = W * .65, hg = g.createRadialGradient(0, 0, 0, 0, 0, R);
   hg.addColorStop(0, rgba(S, .3 + .2 * pulse * inten + flare * .5)); hg.addColorStop(.25, rgba(P, .13 + .1 * pulse * inten + flare * .2)); hg.addColorStop(1, 'rgba(0,0,0,0)');
   g.fillStyle = hg; g.fillRect(-R, -R, R * 2, R * 2); g.restore();
+  if (th.rays) drawRays(t, pulse, inten);
+  if (th.aurora) drawAurora(t, pulse, inten);
+  if (th.sun) drawSun(t, pulse, inten);
   drawStorm(); // lightning sits behind the spectrum and mountains
   // spectrum skyline
   const bins = 48, bw = W / 2 / bins;
@@ -190,10 +299,59 @@ function drawSky(t, pulse, inten) {
     g.beginPath(); pts.forEach((p, i) => i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]));
     g.strokeStyle = rgba(col, a * .25); g.lineWidth = 5; g.stroke(); g.strokeStyle = rgba(col, a); g.lineWidth = 1.2; g.stroke();
     g.globalCompositeOperation = 'source-over';
+    return pts;
   };
-  mtn(MT_FAR, horY * .2, S, .45);
-  if (th.spikes) mtn(MT_SPIKE, horY * .3, P, .65 + .35 * pulse * inten);
-  else mtn(MT_NEAR, horY * .13, P, .6 + .3 * pulse * inten);
+  const nearA = .6 + .3 * pulse * inten;
+  if (th.ridge === 'reef') { // swaying kelp behind smooth sand dunes
+    mtn(MT_FAR, horY * .14, S, .3);
+    g.globalCompositeOperation = 'lighter';
+    for (const k of KELP) {
+      const pts = [], h = k.h * horY * .5;
+      for (let j = 0; j <= 10; j++) { const f = j / 10; pts.push([k.x * W + Math.sin(t * .9 + k.ph + f * 2.4) * f * W * .018, horY - f * h]); }
+      glowPath(pts, P, k.w, .3 + .2 * pulse * inten);
+    }
+    g.globalCompositeOperation = 'source-over';
+    mtn(MT_DUNES, horY * .09, P, nearA);
+  } else if (th.ridge === 'city') { // skyline with lit windows that flicker a little on the beat
+    mtn(MT_FAR, horY * .16, S, .35);
+    const hs = horY * .34, tops = [];
+    g.fillStyle = th.mtnFill;
+    for (const b of CITY) {
+      const x = b.x * W, w = b.w * W, y = horY - b.h * hs;
+      g.fillRect(x, y, w, horY - y + 1); tops.push([x, y], [x + w, y]);
+      if (b.ant) { g.fillRect(x + w * .45, y - hs * .08, Math.max(1, w * .1), hs * .08); }
+    }
+    g.globalCompositeOperation = 'lighter';
+    g.beginPath(); tracePts(tops); g.strokeStyle = rgba(P, nearA * .25); g.lineWidth = 5; g.stroke(); g.strokeStyle = rgba(P, nearA); g.lineWidth = 1.2; g.stroke();
+    const beat = Math.floor(t / SPB);
+    for (const b of CITY) {
+      const x = b.x * W, w = b.w * W, y = horY - b.h * hs, cols = Math.floor((w - 4) / 6), rows = Math.floor((horY - y - 6) / 7);
+      for (let i = 0; i < cols; i++) for (let j = 0; j < rows; j++) {
+        const hv = hash(b.seed + i, j); if (hv > .32) continue;
+        const flick = hash(b.seed + i * 7 + beat, j) < .06 ? .25 : 1;
+        g.fillStyle = rgba(hv < .1 ? P : S, (.28 + hv) * flick); g.fillRect(x + 3 + i * 6, y + 5 + j * 7, 2.5, 3);
+      }
+      if (b.ant) { g.fillStyle = rgba(P, .5 + .5 * pulse); g.fillRect(x + w * .45, y - hs * .08 - 2, Math.max(2, w * .1), 2); } // beacon
+    }
+    g.globalCompositeOperation = 'source-over';
+  } else if (th.ridge === 'peaks') { // snow-capped range
+    mtn(MT_FAR, horY * .2, S, .4);
+    const pts = mtn(MT_PEAKS, horY * .32, P, nearA);
+    g.fillStyle = 'rgba(205,228,245,.5)';
+    for (let i = 1; i < pts.length - 1; i += 2) {
+      const [px, py] = pts[i], [lx, ly] = pts[i - 1], [rx, ry] = pts[i + 1];
+      if (horY - py < horY * .05) continue; // only real peaks get snow
+      const at = (qx, qy, k) => [px + (qx - px) * k, py + (qy - py) * k], R = at(rx, ry, .38), L = at(lx, ly, .38);
+      // ragged snow line: down each slope, then a zigzag back across
+      g.beginPath(); g.moveTo(px, py); g.lineTo(R[0], R[1]);
+      g.lineTo((R[0] * 2 + px) / 3, (R[1] * 2 + py) / 3 + (horY - py) * .06); g.lineTo(px, R[1] * .5 + L[1] * .5 - (horY - py) * .02);
+      g.lineTo((L[0] * 2 + px) / 3, (L[1] * 2 + py) / 3 + (horY - py) * .07); g.lineTo(L[0], L[1]); g.closePath(); g.fill();
+    }
+  } else {
+    mtn(MT_FAR, horY * .2, S, .45);
+    if (th.ridge === 'spikes') mtn(MT_SPIKE, horY * .3, P, .65 + .35 * pulse * inten);
+    else mtn(MT_NEAR, horY * .13, P, nearA);
+  }
   g.globalCompositeOperation = 'lighter';
   glowLine(0, horY, W, horY, mix(S, WHITE, .35 + flare * .5), 1.3 * (1 + flare * 2.5), Math.min(1, .7 + .3 * pulse * inten + flare));
   if (flare > .01) { // anamorphic lens streak on the horizon

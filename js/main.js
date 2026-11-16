@@ -53,7 +53,7 @@ function render(now) {
   if (fly > 0) { const z = 1 + fly * .45; g.translate(cx, H * .55); g.rotate(fly * .14); g.scale(z, z); g.translate(-cx, -H * .55); }
   drawSky(t, pulse, info.inten);
   drawFloor(t, pulse, info.inten);
-  drawEmbers(live, info.inten);
+  drawWeather(live, info.inten);
   drawRoad(t, pulse, info.inten, live);
   if (live) { drawNotes(t); }
   // trail ignites as the music begins (title/results: always lit)

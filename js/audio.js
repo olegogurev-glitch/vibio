@@ -204,6 +204,99 @@ const A = {
     o.frequency.setValueAtTime(210, t); o.frequency.exponentialRampToValueAtTime(150, t + .1);
     g.gain.setValueAtTime(v * .6, t); g.gain.exponentialRampToValueAtTime(.001, t + .11); o.connect(g); g.connect(this.bus);
   },
+  // ---- DEEP CURRENT voices ----
+  keys(t, notes, dur, v = .12) { // electric piano: FM sine tines whose brightness fades as the note rings
+    const end = t + dur + .6, f = this.filt('lowpass', 3400, .5), g = this.gain(0), rs = this.gain(.45), k = 1 / notes.length;
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(v, t + .006); g.gain.exponentialRampToValueAtTime(v * .45, t + .5);
+    g.gain.setValueAtTime(v * .45, t + Math.max(dur, .51)); g.gain.exponentialRampToValueAtTime(.0001, t + dur + .5);
+    notes.forEach(m => {
+      const fr = this.mtof(m), car = this.osc('sine', fr, t, end), mod = this.osc('sine', fr * 2, t, end), mg = this.gain(0), cg = this.gain(k);
+      mg.gain.setValueAtTime(fr * 1.4, t); mg.gain.exponentialRampToValueAtTime(fr * .08, t + .45);
+      mod.connect(mg); mg.connect(car.frequency); car.connect(cg); cg.connect(f);
+    });
+    f.connect(g); g.connect(this.duck); g.connect(this.dly); g.connect(rs); rs.connect(this.rev);
+  },
+  reese(t, m, dur, v = .36) { // two detuned saws beating against each other under a closing filter, clean sine sub below
+    const end = t + dur + .05, f = this.filt('lowpass', 1400, 3), g = this.gain(0), sg = this.gain(.8);
+    f.frequency.setValueAtTime(1500, t); f.frequency.exponentialRampToValueAtTime(360, t + Math.min(dur, .5));
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(v, t + .01); g.gain.setValueAtTime(v, t + dur * .85); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    [-17, 17].forEach(d => this.osc('sawtooth', this.mtof(m), t, end, d).connect(f));
+    this.osc('sine', this.mtof(m - 12), t, end).connect(sg); sg.connect(g);
+    f.connect(g); g.connect(this.duck);
+  },
+  aqua(t, m, dur, v = .22) { // DEEP CURRENT lead: glassy triangle/sine with a breath on the attack and slow vibrato
+    const rel = .25, end = t + dur + rel + .05, f = this.filt('lowpass', 4200, 1), g = this.gain(0);
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(v, t + .02); g.gain.exponentialRampToValueAtTime(v * .75, t + .2);
+    g.gain.setValueAtTime(v * .75, t + Math.max(dur, .21)); g.gain.exponentialRampToValueAtTime(.0001, t + dur + rel);
+    const fr = this.mtof(m), oscs = [this.osc('triangle', fr, t, end, -5), this.osc('sine', fr, t, end, 5)];
+    const og = this.gain(.2); this.osc('sine', fr * 2, t, end).connect(og); og.connect(f);
+    oscs.forEach(o => o.connect(f));
+    if (dur > .3) {
+      const lfo = this.osc('sine', 5, t, end), lg = this.gain(0);
+      lg.gain.setValueAtTime(0, t + .15); lg.gain.linearRampToValueAtTime(18, t + dur);
+      lfo.connect(lg); oscs.forEach(o => lg.connect(o.detune));
+    }
+    const br = this.nz(t, .09, 'bandpass', Math.min(9000, fr * 3), 2, v * .35); br.g.connect(this.rev); // breath
+    const rs = this.gain(.5); f.connect(g); g.connect(this.leadBus); g.connect(this.dly); g.connect(rs); rs.connect(this.rev);
+  },
+  plink(t, m, v = .07) { // bubble: a sine blip that bends up as it pops
+    const f0 = this.mtof(m), o = this.osc('sine', f0, t, t + .2), g = this.gain(0);
+    o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f0 * 1.5, t + .06);
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(v, t + .005); g.gain.exponentialRampToValueAtTime(.001, t + .16);
+    o.connect(g); g.connect(this.duck); g.connect(this.dly);
+  },
+  // ---- PEACH SODA voices ----
+  funk(t, m, dur, v = .15) { // brassy square/saw lead that scoops up into each note
+    const rel = .1, end = t + dur + rel + .05, f = this.filt('lowpass', 2400, 4), g = this.gain(0);
+    f.frequency.setValueAtTime(1200, t); f.frequency.exponentialRampToValueAtTime(4200, t + .05); f.frequency.exponentialRampToValueAtTime(2200, t + .3);
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(v, t + .008); g.gain.exponentialRampToValueAtTime(v * .8, t + .15);
+    g.gain.setValueAtTime(v * .8, t + Math.max(dur, .16)); g.gain.exponentialRampToValueAtTime(.0001, t + dur + rel);
+    const fr = this.mtof(m), oscs = [this.osc('square', fr, t, end, -5), this.osc('sawtooth', fr, t, end, 5)];
+    oscs.forEach(o => { o.frequency.setValueAtTime(fr * .94, t); o.frequency.exponentialRampToValueAtTime(fr, t + .045); o.connect(f); }); // ~1 semitone scoop
+    if (dur > .4) {
+      const lfo = this.osc('sine', 5.5, t, end), lg = this.gain(0);
+      lg.gain.setValueAtTime(0, t + .2); lg.gain.linearRampToValueAtTime(14, t + dur);
+      lfo.connect(lg); oscs.forEach(o => lg.connect(o.detune));
+    }
+    const rs = this.gain(.2); f.connect(g); g.connect(this.leadBus); g.connect(this.dly); g.connect(rs); rs.connect(this.rev);
+  },
+  stab(t, notes, dur, v = .1, cut = 2600) { // chopped chord hit (saw + square an octave up)
+    const end = t + dur + .05, f = this.filt('lowpass', cut, 2), g = this.gain(0), rs = this.gain(.25), k = 1 / notes.length;
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(v, t + .004); g.gain.exponentialRampToValueAtTime(v * .3, t + dur); g.gain.linearRampToValueAtTime(0, t + dur + .04);
+    notes.forEach(m => { const og = this.gain(k); this.osc('sawtooth', this.mtof(m), t, end, -6).connect(og); this.osc('square', this.mtof(m + 12), t, end, 6).connect(og); og.connect(f); });
+    f.connect(g); g.connect(this.duck); g.connect(rs); rs.connect(this.rev);
+  },
+  slap(t, m, dur, v = .4) { // plucky resonant bass with a triangle sub
+    const end = t + dur + .04, f = this.filt('lowpass', 3000, 7), g = this.gain(0), sub = this.gain(.6);
+    f.frequency.setValueAtTime(3200, t); f.frequency.exponentialRampToValueAtTime(320, t + .12);
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(v, t + .004); g.gain.setValueAtTime(v, t + dur * .7); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    this.osc('sawtooth', this.mtof(m), t, end).connect(f); this.osc('triangle', this.mtof(m - 12), t, end).connect(sub); sub.connect(g);
+    f.connect(g); g.connect(this.duck);
+  },
+  snap(t) { this.nz(t, .06, 'bandpass', 2900, 2.2, .32, [this.rev]); }, // finger snap
+  crackle(t, dur) { // vinyl: sparse tiny clicks
+    for (let i = 0; i < 14; i++) this.nz(t + Math.random() * dur, .004 + Math.random() * .004, 'highpass', 2500, .5, .02 + Math.random() * .05);
+  },
+  // ---- AURORA voices ----
+  supersaw(t, m, dur, v = .2) { // seven detuned saws + one an octave down, washed in reverb
+    const rel = .3, end = t + dur + rel + .05, f = this.filt('lowpass', 6500, .7), g = this.gain(0);
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(v, t + .012);
+    g.gain.setValueAtTime(v, t + Math.max(dur, .02)); g.gain.exponentialRampToValueAtTime(.0001, t + dur + rel);
+    const fr = this.mtof(m), oscs = [-34, -22, -11, 0, 11, 22, 34].map(d => { const o = this.osc('sawtooth', fr, t, end, d), og = this.gain(1 / 7); o.connect(og); og.connect(f); return o; });
+    const lg0 = this.gain(.25); this.osc('sawtooth', fr / 2, t, end).connect(lg0); lg0.connect(f);
+    if (dur > .4) {
+      const lfo = this.osc('sine', 5.2, t, end), lg = this.gain(0);
+      lg.gain.setValueAtTime(0, t + .25); lg.gain.linearRampToValueAtTime(14, t + dur);
+      lfo.connect(lg); oscs.forEach(o => lg.connect(o.detune));
+    }
+    const rs = this.gain(.45); f.connect(g); g.connect(this.leadBus); g.connect(this.dly); g.connect(rs); rs.connect(this.rev);
+  },
+  gate(t, notes, dur, v = .06) { // one 16th slice of a gated supersaw chord
+    const end = t + dur + .03, f = this.filt('lowpass', 3800, .7), g = this.gain(0), rs = this.gain(.35), k = 1 / notes.length;
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(v, t + .004); g.gain.setValueAtTime(v, t + dur * .7); g.gain.linearRampToValueAtTime(0, t + dur);
+    notes.forEach(m => [-18, 18].forEach(d => { const og = this.gain(k); this.osc('sawtooth', this.mtof(m + 12), t, end, d).connect(og); og.connect(f); }));
+    f.connect(g); g.connect(this.duck); g.connect(rs); rs.connect(this.rev);
+  },
   stamp() { // grade lands: deep thump straight into the master (the song bus is fading out)
     const t = this.ctx.currentTime, o = this.osc('sine', 130, t, t + .5), g = this.gain(0);
     o.frequency.exponentialRampToValueAtTime(38, t + .3);
