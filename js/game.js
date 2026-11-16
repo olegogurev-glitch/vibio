@@ -134,7 +134,23 @@ function startGame() {
   state = 'play'; show(null);
   if (!testing) pixoRun('run-start');
 }
-const songTime = () => A.ctx.currentTime - startTime - latency - userOffset / 1000;
+// Phones (Android especially) move AudioContext.currentTime forward in steps of their audio buffer,
+// often 10-40 ms at a time, so notes placed from it stutter even at a steady 60 fps. audioNow() runs
+// the audio clock along performance.now() instead: it follows the top of each step (the moment the
+// clock is exact) and sinks back at 40 ms/s in between, so if the audio loses time (a dropout on a
+// busy phone) it is back in sync within a second, while the sawtooth this leaves is only ~1 ms.
+// A big jump (suspend, resume) re-syncs at once.
+const CLK = { off: null, at: 0 };
+function audioNow() {
+  const ctx = A.ctx, raw = ctx.currentTime;
+  if (ctx.state !== 'running') { CLK.off = null; return raw; }
+  const pn = performance.now() / 1000, m = raw - pn;
+  if (CLK.off === null || m > CLK.off || m < CLK.off - .1) CLK.off = m;
+  else CLK.off -= Math.min(.05, pn - CLK.at) * .04;
+  CLK.at = pn;
+  return pn + CLK.off;
+}
+const songTime = () => audioNow() - startTime - latency - userOffset / 1000;
 
 function schedule() {
   if (!A.ctx) return;

@@ -3,7 +3,8 @@ html,body{margin:0;height:100%;background:var(--bg);overflow:hidden;color:#cfeff
 #c{position:fixed;inset:0;width:100%;height:100%;display:block}
 #safe{position:fixed;visibility:hidden;pointer-events:none;padding:env(safe-area-inset-top,0) env(safe-area-inset-right,0) env(safe-area-inset-bottom,0) env(safe-area-inset-left,0)}
 .screen{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:20px;text-align:center;padding:calc(16px + var(--st,0px)) calc(16px + var(--sr,0px)) calc(16px + var(--sb,0px)) calc(16px + var(--sl,0px));box-sizing:border-box;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;touch-action:pan-y;transition:opacity .45s ease;background:radial-gradient(ellipse at center,rgba(1,4,12,.35),rgba(1,2,8,.75))}
-.screen.hidden{opacity:0;pointer-events:none}
+.screen.hidden{opacity:0;pointer-events:none;visibility:hidden;transition:opacity .45s ease,visibility 0s .45s}
+.screen.hidden *{animation-play-state:paused} /* hidden menus stop animating: no repaints behind the game */
 .logo{font-family:Orbitron,sans-serif;font-weight:900;font-size:clamp(64px,15vw,176px);letter-spacing:.2em;padding-left:.2em;line-height:1;color:rgba(0,234,255,.08);-webkit-text-stroke:2px var(--cyan);text-shadow:0 0 10px rgba(0,234,255,.9),0 0 34px rgba(0,234,255,.55),0 0 90px rgba(0,140,255,.45);animation:flicker 5s infinite}
 .logo span{-webkit-text-stroke-color:var(--orange);text-shadow:0 0 10px rgba(255,160,40,.9),0 0 34px rgba(255,120,30,.55),0 0 90px rgba(255,90,20,.4)}
 @keyframes flicker{0%,18%,22%,62%,64%,100%{opacity:1}20%,63%{opacity:.55}}

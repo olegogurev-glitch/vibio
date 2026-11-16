@@ -5,21 +5,95 @@
 /* =========================================================
    RENDERING
    ========================================================= */
-const cv = $('c'), g = cv.getContext('2d');
+// opaque canvas: every frame paints all of it, and the compositor can skip blending it with the page
+const cv = $('c'), g = cv.getContext('2d', { alpha: false });
 // bloom chain: progressively downsampled copies of the frame, added back on top
-const BL = [2, 4, 8, 16].map(f => { const c = document.createElement('canvas'); return { c, x: c.getContext('2d'), f }; });
+const mkCanvas = () => { const c = document.createElement('canvas'); return { c, x: c.getContext('2d') }; };
+const BL = [2, 4, 8, 16].map(f => Object.assign(mkCanvas(), { f }));
+const BC = mkCanvas(); // the three blur levels summed at 1/4 size, so only one full-screen draw goes back on the frame
 function bloom(k) {
   let src = cv;
   for (const b of BL) {
     b.x.globalCompositeOperation = 'copy'; b.x.drawImage(src, 0, 0, b.c.width, b.c.height); src = b.c;
     if (b.f === 2) { b.x.globalCompositeOperation = 'multiply'; b.x.drawImage(b.c, 0, 0); } // square it: keeps highlights, drops darks
   }
+  // weights .35 / .45 / .6, divided by their sum (1.4) so the 1/4-size sum can't clip; the 1.4 goes back on below
+  const x = BC.x, w = BC.c.width, h = BC.c.height;
+  x.globalCompositeOperation = 'copy'; x.globalAlpha = .25; x.drawImage(BL[1].c, 0, 0);
+  x.globalCompositeOperation = 'lighter'; x.globalAlpha = .45 / 1.4; x.drawImage(BL[2].c, 0, 0, w, h);
+  x.globalAlpha = .6 / 1.4; x.drawImage(BL[3].c, 0, 0, w, h);
   g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'lighter'; g.imageSmoothingEnabled = true;
-  g.globalAlpha = k * .35; g.drawImage(BL[1].c, 0, 0, cv.width, cv.height);
-  g.globalAlpha = k * .45; g.drawImage(BL[2].c, 0, 0, cv.width, cv.height);
-  g.globalAlpha = k * .6; g.drawImage(BL[3].c, 0, 0, cv.width, cv.height);
+  for (let a = k * 1.4; a > .004; a -= 1) { g.globalAlpha = Math.min(1, a); g.drawImage(BC.c, 0, 0, cv.width, cv.height); }
   g.restore();
 }
+
+// ---- adaptive resolution ----
+// Weak phones can't fill a 2× canvas with this much glow at full frame rate. When frames keep getting
+// dropped, the canvas steps down to a lower resolution (the browser scales it up to fill the screen).
+// A step is kept only if it actually cut the dropped frames; it is remembered per device, and after a
+// few days the game tries one step finer again. ?gfx=0..4 forces a step, ?fps shows a frame counter.
+const QSTEP = [1, .8, .66, .54, .44], QKEY = 'vibio.gfx';
+const QS = new URLSearchParams(location.search), QFORCE = QS.has('gfx') ? clamp(+QS.get('gfx') | 0, 0, QSTEP.length - 1) : null;
+let qLvl = 0;
+if (QFORCE !== null) qLvl = QFORCE;
+else try {
+  const q = JSON.parse(localStorage.getItem(QKEY));
+  if (q) { qLvl = clamp(q.lvl | 0, 0, QSTEP.length - 1); if (qLvl && Date.now() - q.at > 3 * 864e5) { qLvl--; saveQ(); } }
+} catch (e) { }
+function saveQ() { try { localStorage.setItem(QKEY, JSON.stringify({ lvl: qLvl, at: Date.now() })); } catch (e) { } }
+const lite = () => qLvl >= 2; // lower steps also thin out the weather
+const QM = { last: 0, t0: 0, n: 0, late: 0, hold: 0, st: '', prev: null, locked: QFORCE !== null, fps: QS.has('fps'), fn: 0, ft: 0, shown: 0 };
+function qMonitor(now) {
+  const ms = now - QM.last; QM.last = now;
+  if (QM.fps) { QM.fn++; if (now - QM.ft > 500) { QM.shown = QM.fn * 1000 / (now - QM.ft); QM.fn = 0; QM.ft = now; } }
+  if (QM.locked || document.hidden) return;
+  // judge only steady play/menu frames: skip a second after any screen change or resolution change
+  if (state !== QM.st) { QM.st = state; QM.hold = now + 1000; }
+  if (now < QM.hold || !(state === 'title' || state === 'play' || state === 'results')) { QM.t0 = now; QM.n = QM.late = 0; return; }
+  if (ms > 150) return; // a tab switch or one long stall, not a steady load
+  QM.n++; if (ms > 21) QM.late++; // under ~48 fps at 60 Hz, or a missed frame at 90/120 Hz
+  if (now - QM.t0 < 3000) return;
+  const ratio = QM.late / QM.n; QM.t0 = now; QM.n = QM.late = 0;
+  if (ratio > .06) { // more than ~1 in 16 frames dropped: visible stutter
+    if (QM.prev !== null && ratio > QM.prev * .6) { qSet(qLvl - 1); QM.locked = true; saveQ(); return; } // that step didn't help: the cost is elsewhere
+    const before = DPR; qSet(qLvl + 1);
+    if (DPR < before) QM.prev = ratio; else QM.locked = true; // already at the lowest useful step
+  } else if (QM.prev !== null) { QM.prev = null; saveQ(); } // the lower step fixed it: keep it
+}
+function qSet(l) { qLvl = clamp(l, 0, QSTEP.length - 1); resize(); QM.hold = performance.now() + 1000; }
+function drawFps() {
+  if (!QM.fps) return;
+  g.font = '700 11px monospace'; g.textAlign = 'left'; g.textBaseline = 'bottom'; g.fillStyle = '#9f9';
+  g.fillText(`${QM.shown.toFixed(0)} fps · gfx ${qLvl} · ${DPR.toFixed(2)}x`, 8 + SAFE.l, H - 6 - SAFE.b);
+}
+
+// ---- glowing text ----
+// shadowBlur is one of the slowest things a phone's canvas can do, so each glowing label is drawn once
+// into a small canvas and reused while its text stays the same (score / combo change only on a hit)
+const TXT = new Map();
+if (document.fonts) document.fonts.addEventListener('loadingdone', () => TXT.clear()); // redraw in Orbitron once it arrives
+function textSprite(txt, font, fill, shadow, blur, core, align, base) {
+  const key = `${txt}|${font}|${fill}|${shadow}|${blur}|${core}|${align}|${base}`;
+  let s = TXT.get(key); if (s) return s;
+  if (TXT.size > 96) TXT.clear();
+  g.font = font;
+  const tw = g.measureText(txt).width, size = parseFloat(/(\d+(?:\.\d+)?)px/.exec(font)[1]);
+  const pad = Math.ceil(blur * 1.6 / DPR + 3); // shadowBlur is in canvas pixels, not CSS pixels
+  const w = Math.ceil(tw + pad * 2), h = Math.ceil(size * 1.5 + pad * 2);
+  const c = document.createElement('canvas'), x = c.getContext('2d');
+  c.width = Math.ceil(w * DPR); c.height = Math.ceil(h * DPR); x.setTransform(DPR, 0, 0, DPR, 0, 0);
+  const ax = align === 'center' ? w / 2 : align === 'right' ? w - pad : pad, ay = base === 'top' ? pad + size * .15 : h / 2;
+  x.font = font; x.textAlign = align; x.textBaseline = base;
+  x.shadowColor = shadow; x.shadowBlur = blur; x.fillStyle = fill; x.fillText(txt, ax, ay);
+  x.shadowBlur = 0; if (core > 0) { x.fillStyle = `rgba(255,255,255,${core})`; x.fillText(txt, ax, ay); }
+  s = { c, w, h, ax, ay }; TXT.set(key, s); return s;
+}
+function drawText(txt, x, y, font, fill, shadow, blur, core = 0, a = 1, align = 'center', base = 'middle') {
+  if (a <= 0) return;
+  const s = textSprite(txt, font, fill, shadow, blur, core, align, base);
+  g.globalAlpha = Math.min(1, a); g.drawImage(s.c, x - s.ax, y - s.ay, s.w, s.h); g.globalAlpha = 1;
+}
+
 let W, H, DPR, cx, horY, hitY, roadW, laneW, dBottom;
 // phones: notch / Dynamic Island / home bar insets (from the #safe probe, which is padded with env(safe-area-inset-*))
 const SAFE = { t: 0, r: 0, b: 0, l: 0 };
@@ -44,9 +118,11 @@ function readSafe() {
   st.setProperty('--st', t + 'px'); st.setProperty('--sr', r + 'px'); st.setProperty('--sb', b + 'px'); st.setProperty('--sl', l + 'px');
 }
 function resize() {
-  DPR = Math.min(2, window.devicePixelRatio || 1); W = innerWidth; H = innerHeight; readSafe();
-  cv.width = W * DPR; cv.height = H * DPR; g.setTransform(DPR, 0, 0, DPR, 0, 0);
+  DPR = Math.max(.6, Math.min(2, window.devicePixelRatio || 1) * QSTEP[qLvl]); W = innerWidth; H = innerHeight; readSafe();
+  cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR); g.setTransform(DPR, 0, 0, DPR, 0, 0);
   BL.forEach(b => { b.c.width = Math.max(1, Math.ceil(W / b.f)); b.c.height = Math.max(1, Math.ceil(H / b.f)); });
+  BC.c.width = BL[1].c.width; BC.c.height = BL[1].c.height;
+  TXT.clear(); // glow-text sprites are drawn at the canvas resolution
   // on touch screens the hit line sits higher, clear of the home bar and the bottom edge where thumbs can't reach comfortably
   const usable = H - SAFE.b;
   cx = W / 2; hitY = TOUCH ? usable * (H > W ? .74 : .78) : H * .84;
@@ -138,14 +214,17 @@ function drawStorm() {
   g.globalCompositeOperation = 'source-over';
 }
 // weather particles per theme: embers / bubbles rise from the bottom, petals / snow fall from the top
+// drawn in batches: every particle with the same colour and one of 8 alpha steps goes into one path
 let weatherKind = null;
+const ALV = 8, lvPaths = (n = ALV) => Array.from({ length: n + 1 }, () => new Path2D());
+function fillLevels(paths, col, k) { const n = paths.length - 1; for (let i = 1; i <= n; i++) { g.fillStyle = rgba(col, i / n * k); g.fill(paths[i]); } }
 function drawWeather(live, inten) {
   const kind = TH().weather;
   if (kind !== weatherKind) { embers.length = 0; weatherKind = kind; }
   if (!kind) return;
-  const rise = kind === 'embers' || kind === 'bubbles';
-  const perSec = { embers: live ? 10 + 25 * inten : 14, bubbles: live ? 6 + 14 * inten : 9, petals: live ? 5 + 9 * inten : 7, snow: live ? 18 + 30 * inten : 24 }[kind];
-  const cap = { embers: 220, bubbles: 120, petals: 90, snow: 260 }[kind];
+  const rise = kind === 'embers' || kind === 'bubbles', thin = lite() ? .5 : 1;
+  const perSec = { embers: live ? 10 + 25 * inten : 14, bubbles: live ? 6 + 14 * inten : 9, petals: live ? 5 + 9 * inten : 7, snow: live ? 18 + 30 * inten : 24 }[kind] * thin;
+  const cap = { embers: 220, bubbles: 120, petals: 90, snow: 260 }[kind] * thin;
   const rate = perSec * frameDt, n = Math.floor(rate) + (Math.random() < rate % 1 ? 1 : 0);
   for (let i = 0; i < n && embers.length < cap; i++) {
     const p = { x: Math.random() * W, y: rise ? H + 6 : -6, life: 1, ph: Math.random() * 6 };
@@ -153,33 +232,41 @@ function drawWeather(live, inten) {
     if (kind === 'bubbles') Object.assign(p, { vx: 0, vy: -(30 + Math.random() * 70), r: 1.5 + Math.random() * 4 });
     if (kind === 'petals') Object.assign(p, { x: Math.random() * W * 1.2 - W * .1, vx: 14 + Math.random() * 26, vy: 28 + Math.random() * 40, r: 2.5 + Math.random() * 2.5, spin: (Math.random() - .5) * 5 });
     if (kind === 'snow') Object.assign(p, { vx: -6 - Math.random() * 10, vy: 22 + Math.random() * 46, r: 1 + Math.random() * 2 });
+    if (kind === 'embers') p.hue = Math.min(2, (p.r - 1.4) * 1.5 | 0); // 3 shades: bigger embers burn yellower
     embers.push(p);
   }
-  g.globalCompositeOperation = 'lighter';
   const fade = rise ? .22 : .12;
+  // embers: 3 shades × (halo, core); everything else: one colour × (main, extra)
+  const A1 = kind === 'embers' ? [lvPaths(), lvPaths(), lvPaths()] : [lvPaths()], A2 = kind === 'embers' ? [lvPaths(), lvPaths(), lvPaths()] : [lvPaths()];
+  let keep = 0;
   for (const e of embers) {
     e.life -= frameDt * fade; e.ph += frameDt * 2;
     e.x += (e.vx + Math.sin(e.ph) * (kind === 'bubbles' ? 18 : 12)) * frameDt; e.y += e.vy * frameDt;
-    const a = Math.max(0, Math.min(1, e.life * 2));
+    if (!(e.life > 0 && e.y > -10 && e.y < H + 10)) continue;
+    embers[keep++] = e;
+    const lv = Math.ceil(Math.max(0, Math.min(1, e.life * 2)) * ALV); if (!lv) continue;
     if (kind === 'embers') {
-      const gb = 110 + (e.r * 25 | 0);
-      g.fillStyle = `rgba(255,${gb},40,${a * .22})`; g.fillRect(e.x - e.r, e.y - e.r, e.r * 3, e.r * 3); // soft halo
-      g.fillStyle = `rgba(255,${gb + 40},90,${a * .9})`; g.fillRect(e.x, e.y, e.r, e.r);
+      A1[e.hue][lv].rect(e.x - e.r, e.y - e.r, e.r * 3, e.r * 3); A2[e.hue][lv].rect(e.x, e.y, e.r, e.r);
     } else if (kind === 'bubbles') {
-      g.strokeStyle = rgba(mix(S, WHITE, .5), a * .45); g.lineWidth = 1;
-      g.beginPath(); g.arc(e.x, e.y, e.r, 0, 7); g.stroke();
-      g.fillStyle = `rgba(255,255,255,${a * .5})`; g.fillRect(e.x - e.r * .45, e.y - e.r * .45, 1.2, 1.2); // glint
-    } else if (kind === 'petals') {
-      g.save(); g.translate(e.x, e.y); g.rotate(e.ph * e.spin * .5); g.scale(1, .45 + .4 * Math.sin(e.ph * 1.7)); // tumbling
-      g.fillStyle = rgba(mix(P, WHITE, .45), a * .55); g.beginPath(); g.ellipse(0, 0, e.r * 1.4, e.r, 0, 0, 7); g.fill();
-      g.restore();
+      A1[0][lv].moveTo(e.x + e.r, e.y); A1[0][lv].arc(e.x, e.y, e.r, 0, 7); A2[0][lv].rect(e.x - e.r * .45, e.y - e.r * .45, 1.2, 1.2);
+    } else if (kind === 'petals') { // tumbling: spin plus a squash that flips the petal over
+      const rot = e.ph * e.spin * .5, rx = e.r * 1.4;
+      A1[0][lv].moveTo(e.x + rx * Math.cos(rot), e.y + rx * Math.sin(rot));
+      A1[0][lv].ellipse(e.x, e.y, rx, e.r * Math.abs(.45 + .4 * Math.sin(e.ph * 1.7)), rot, 0, Math.PI * 2);
     } else {
-      g.fillStyle = `rgba(200,225,255,${a * .15})`; g.fillRect(e.x - e.r, e.y - e.r, e.r * 3, e.r * 3); // soft halo
-      g.fillStyle = `rgba(235,245,255,${a * .85})`; g.fillRect(e.x, e.y, e.r, e.r);
+      A1[0][lv].rect(e.x - e.r, e.y - e.r, e.r * 3, e.r * 3); A2[0][lv].rect(e.x, e.y, e.r, e.r);
     }
   }
+  embers.length = keep;
+  g.globalCompositeOperation = 'lighter';
+  if (kind === 'embers') for (let h = 0; h < 3; h++) { const gb = 145 + h * 25; fillLevels(A1[h], [255, gb, 40], .22); fillLevels(A2[h], [255, gb + 40, 90], .9); }
+  else if (kind === 'bubbles') {
+    g.lineWidth = 1; const c = mix(S, WHITE, .5);
+    for (let i = 1; i <= ALV; i++) { g.strokeStyle = rgba(c, i / ALV * .45); g.stroke(A1[0][i]); }
+    fillLevels(A2[0], WHITE, .5);
+  } else if (kind === 'petals') fillLevels(A1[0], mix(P, WHITE, .45), .55);
+  else { fillLevels(A1[0], [200, 225, 255], .15); fillLevels(A2[0], [235, 245, 255], .85); }
   g.globalCompositeOperation = 'source-over';
-  embers = embers.filter(e => e.life > 0 && e.y > -10 && e.y < H + 10);
 }
 // ocean: slow god rays slanting down from the surface
 function drawRays(t, pulse, inten) {
@@ -269,7 +356,9 @@ function drawSky(t, pulse, inten) {
   fl.addColorStop(0, th.floor[0]); fl.addColorStop(.22, th.floor[1]); fl.addColorStop(1, th.floor[2]);
   g.fillStyle = fl; g.fillRect(0, horY, W, H - horY);
   g.globalCompositeOperation = 'lighter';
-  for (const s of STARS) { const a = (.25 + .6 * Math.sin(t * s.sp + s.ph) ** 2) * s.b; g.fillStyle = rgba(th.star, a * th.stars); g.fillRect(s.x * W, s.y * horY * .9, s.r, s.r); }
+  const sp = lvPaths(16); // stars batched by brightness step (fine steps: they twinkle slowly)
+  for (const s of STARS) { const a = (.25 + .6 * Math.sin(t * s.sp + s.ph) ** 2) * s.b; sp[Math.max(1, Math.round(a * 16))].rect(s.x * W, s.y * horY * .9, s.r, s.r); }
+  fillLevels(sp, th.star, th.stars);
   // horizon bloom
   g.save(); g.translate(cx, horY); g.scale(1, .32);
   const R = W * .65, hg = g.createRadialGradient(0, 0, 0, 0, 0, R);
@@ -323,16 +412,18 @@ function drawSky(t, pulse, inten) {
     }
     g.globalCompositeOperation = 'lighter';
     g.beginPath(); tracePts(tops); g.strokeStyle = rgba(P, nearA * .25); g.lineWidth = 5; g.stroke(); g.strokeStyle = rgba(P, nearA); g.lineWidth = 1.2; g.stroke();
-    const beat = Math.floor(t / SPB);
+    const beat = Math.floor(t / SPB), win = [lvPaths(), lvPaths()], beacons = new Path2D(); // windows batched by colour and brightness step
     for (const b of CITY) {
       const x = b.x * W, w = b.w * W, y = horY - b.h * hs, cols = Math.floor((w - 4) / 6), rows = Math.floor((horY - y - 6) / 7);
       for (let i = 0; i < cols; i++) for (let j = 0; j < rows; j++) {
         const hv = hash(b.seed + i, j); if (hv > .32) continue;
         const flick = hash(b.seed + i * 7 + beat, j) < .06 ? .25 : 1;
-        g.fillStyle = rgba(hv < .1 ? P : S, (.28 + hv) * flick); g.fillRect(x + 3 + i * 6, y + 5 + j * 7, 2.5, 3);
+        win[hv < .1 ? 0 : 1][Math.max(1, Math.round((.28 + hv) * flick * ALV))].rect(x + 3 + i * 6, y + 5 + j * 7, 2.5, 3);
       }
-      if (b.ant) { g.fillStyle = rgba(P, .5 + .5 * pulse); g.fillRect(x + w * .45, y - hs * .08 - 2, Math.max(2, w * .1), 2); } // beacon
+      if (b.ant) beacons.rect(x + w * .45, y - hs * .08 - 2, Math.max(2, w * .1), 2);
     }
+    fillLevels(win[0], P, 1); fillLevels(win[1], S, 1);
+    g.fillStyle = rgba(P, .5 + .5 * pulse); g.fill(beacons);
     g.globalCompositeOperation = 'source-over';
   } else if (th.ridge === 'peaks') { // snow-capped range
     mtn(MT_FAR, horY * .2, S, .4);
@@ -369,8 +460,15 @@ function drawFloor(t, pulse, inten) {
   vg.addColorStop(0, rgba(P, 0)); vg.addColorStop(.35, rgba(P, .16 + .12 * pulse * inten + feverT * .1)); vg.addColorStop(1, rgba(P, .4 + .2 * pulse * inten + feverT * .15));
   g.strokeStyle = vg; g.lineWidth = 1;
   g.beginPath();
-  const fds = dSpan(dBottom, 60, 20);
-  for (let k = 1; k <= 26; k++) for (const side of [-1, 1]) tracePts(path(side * (roadW / 2 + k * laneW * 1.15), fds));
+  // the hill height and crest clipping depend only on depth, so work them out once for all 52 grid lines
+  const fds = dSpan(dBottom, 60, 20), fs = [], fy = [], fo = [];
+  let m = Infinity;
+  for (const d of fds) { const s = 1 / (1 + K * d); let y = horY + (hitY - horY) * s - lift(d); if (y > m) y = m; else m = y; fs.push(s); fy.push(y); fo.push(off(d)); }
+  for (let k = 1; k <= 26; k++) for (let side = -1; side <= 1; side += 2) {
+    const X = side * (roadW / 2 + k * laneW * 1.15);
+    g.moveTo(cx + (X + fo[0]) * fs[0], fy[0]);
+    for (let i = 1; i < fs.length; i++) g.lineTo(cx + (X + fo[i]) * fs[i], fy[i]);
+  }
   g.stroke();
   // horizontal lines on the beat
   const b0 = Math.floor((t + dBottom * LOOK) / SPB), b1 = Math.ceil((t + 5 * LOOK) / SPB);
@@ -637,18 +735,25 @@ function hitFx(l, power) {
 }
 function spark(x, y, col, pow, life) {
   const a = -Math.PI / 2 + (Math.random() - .5) * 2.2, v = (120 + Math.random() * 380) * pow;
-  particles.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life, max: life, col: Math.random() < .3 ? [255, 255, 255] : col });
+  const c = Math.random() < .3 ? WHITE : col;
+  particles.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life, max: life, col: c, ck: c.join() });
 }
 function drawFx(dt) {
   g.globalCompositeOperation = 'lighter';
+  // sparks batched per colour and alpha step: a few strokes instead of one per spark
+  if (particles.length > 600) particles.splice(0, particles.length - 600);
+  const groups = new Map(); let keep = 0;
   for (const p of particles) {
     p.life -= dt * 1.8; p.vy += 600 * dt; p.vx *= .97; p.x += p.vx * dt; p.y += p.vy * dt;
-    const a = Math.max(0, p.life / p.max);
-    g.strokeStyle = rgba(p.col, a); g.lineWidth = 1.6;
-    g.beginPath(); g.moveTo(p.x, p.y); g.lineTo(p.x - p.vx * .03, p.y - p.vy * .03); g.stroke();
+    if (p.life <= 0) continue;
+    particles[keep++] = p;
+    let grp = groups.get(p.ck); if (!grp) groups.set(p.ck, grp = { col: p.col, lv: lvPaths() });
+    const path = grp.lv[Math.ceil(p.life / p.max * ALV)];
+    path.moveTo(p.x, p.y); path.lineTo(p.x - p.vx * .03, p.y - p.vy * .03);
   }
-  particles = particles.filter(p => p.life > 0);
-  if (particles.length > 600) particles.splice(0, particles.length - 600);
+  particles.length = keep;
+  g.lineWidth = 1.6;
+  for (const grp of groups.values()) for (let i = 1; i <= ALV; i++) { g.strokeStyle = rgba(grp.col, i / ALV); g.stroke(grp.lv[i]); }
   for (const r of rings) {
     r.life -= dt * 2.6; r.r += dt * 260;
     g.strokeStyle = rgba(r.col, Math.max(0, r.life)); g.lineWidth = 2.5 * r.life + .5;
@@ -660,9 +765,7 @@ function drawFx(dt) {
 }
 
 function glowText(txt, x, y, font, col, a, blur = 18, core = .6) {
-  g.font = font; g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.shadowColor = rgba(col, a); g.shadowBlur = blur; g.fillStyle = rgba(col, a); g.fillText(txt, x, y);
-  g.shadowBlur = 0; if (core > 0) { g.fillStyle = `rgba(255,255,255,${a * core})`; g.fillText(txt, x, y); }
+  const c = rgba(col, 1); drawText(txt, x, y, font, c, c, blur, core, a);
 }
 function drawHUD(t) {
   // judgement
@@ -684,17 +787,13 @@ function drawHUD(t) {
     glowText('COMBO', cx, y + Math.min(44, W * .085), '700 12px Orbitron, sans-serif', [255, 170, 60], .8, 10);
   }
   // score / acc / multiplier
-  g.font = '700 22px Orbitron, sans-serif'; g.textAlign = 'left'; g.textBaseline = 'top';
-  g.shadowColor = 'rgba(0,234,255,.8)'; g.shadowBlur = 12; g.fillStyle = '#e8fdff';
   const hx = 20 + SAFE.l, hy = 18 + SAFE.t, rx = W - SAFE.r - 66;
-  g.fillText(Math.round(score).toString().padStart(7, '0'), hx, hy);
-  g.shadowBlur = 0; g.font = '500 12px Orbitron, sans-serif'; g.fillStyle = 'rgba(140,210,235,.85)';
+  drawText(Math.round(score).toString().padStart(7, '0'), hx, hy, '700 22px Orbitron, sans-serif', '#e8fdff', 'rgba(0,234,255,.8)', 12, 0, 1, 'left', 'top');
+  g.font = '500 12px Orbitron, sans-serif'; g.textAlign = 'left'; g.textBaseline = 'top'; g.fillStyle = 'rgba(140,210,235,.85)';
   const acc = resolved ? accSum / resolved * 100 : 100;
   g.fillText(`ACC ${acc.toFixed(1)}%`, hx + 1, hy + 30);
   const m = mult();
-  g.textAlign = 'right'; g.font = '900 22px Orbitron, sans-serif';
-  g.shadowColor = 'rgba(255,150,40,.9)'; g.shadowBlur = 12; g.fillStyle = m > 1 ? '#ffb24a' : 'rgba(255,178,74,.4)';
-  g.fillText('×' + m, rx, hy); g.shadowBlur = 0;
+  drawText('×' + m, rx, hy, '900 22px Orbitron, sans-serif', m > 1 ? '#ffb24a' : 'rgba(255,178,74,.4)', 'rgba(255,150,40,.9)', 12, 0, 1, 'right', 'top');
   if (feverT > .05) glowText('FEVER', rx - 26, hy + 38, '900 14px Orbitron, sans-serif', [255, 190, 90], feverT * (.65 + .35 * Math.sin(performance.now() / 80)), 14);
   // progress
   const prog = clamp(t / lastEnd, 0, 1), px1 = cx - roadW / 2, pw = roadW;

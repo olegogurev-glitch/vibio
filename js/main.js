@@ -6,6 +6,7 @@
 let lastNow = performance.now();
 function frame(now) {
   requestAnimationFrame(frame); // schedule first: one bad frame must never stop the loop
+  qMonitor(now);
   try { render(now); } catch (e) {
     console.error(e); // reset canvas state so the next frame starts clean
     g.setTransform(DPR, 0, 0, DPR, 0, 0); g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'; g.shadowBlur = 0;
@@ -71,6 +72,7 @@ function render(now) {
   const vg = g.createRadialGradient(cx, H * .55, Math.min(W, H) * .3, cx, H * .55, Math.max(W, H) * .8);
   vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.6)');
   g.fillStyle = vg; g.fillRect(0, 0, W, H);
+  drawFps();
   g.restore();
   schedule();
   if (state === 'editor') edRender();

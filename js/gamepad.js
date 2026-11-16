@@ -93,7 +93,8 @@ function padGone() {
   if (state === 'padsetup') psExit(false);
   inputMode = 'keys'; refreshPadUI();
 }
-setInterval(pollPad, 4);
+// poll fast only while a controller is connected; otherwise just look for one now and then
+(function padLoop() { pollPad(); setTimeout(padLoop, PAD.active ? 4 : 400); })();
 addEventListener('gamepadconnected', e => {
   PAD.idx = e.gamepad.index; PAD.active = true; loadBinds(e.gamepad); refreshPadUI();
   toast(e.gamepad.mapping === 'standard' ? 'CONTROLLER CONNECTED · ' + padLabels.join(' · ') : 'CONTROLLER CONNECTED · USE CONTROLLER SETUP TO MAP THE LANES');
