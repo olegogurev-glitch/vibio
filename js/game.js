@@ -5,7 +5,8 @@
 /* =========================================================
    GAME STATE
    ========================================================= */
-const WIN = { perfect: .045, great: .09, good: .135 };
+const WIN_STD = { perfect: .045, great: .09, good: .135 }, WIN_BEGINNER = { perfect: .06, great: .115, good: .175 };
+const WIN = { ...WIN_STD }; // hit windows for the current run (BEGINNER gets wider ones)
 const LEAD_IN = 3.6, FLY = 1.6, K = 3.6, BASE_LOOK = 1.55; // lead-in = camera fly-in (FLY s) + count-in
 let speed = 1; try { speed = Math.min(2, Math.max(.6, +localStorage.getItem('vibio.speed') || 1)); } catch (e) { }
 let LOOK = BASE_LOOK / speed; // seconds a note is visible before the hit line
@@ -17,8 +18,12 @@ function setSpeed(dv) {
 const LC = [[0, 234, 255], [40, 140, 255], [255, 160, 40], [255, 72, 36]];
 const KEYLBL = ['D', 'F', 'J', 'K'];
 const KEYMAP = { KeyD: 0, KeyF: 1, KeyJ: 2, KeyK: 3 };
-const DIFFS = ['EASY', 'NORMAL', 'HARD'];
-let diffIdx = 1;
+// Difficulty ids stay as they were when there were three (saved bests, Pixo boards and trophies and
+// the daily ?diff= use them); players see them one step up, under DIFF_LABEL.
+const DIFFS = ['BEGINNER', 'EASY', 'NORMAL', 'HARD'];
+const DIFF_LABEL = { BEGINNER: 'EASY', EASY: 'NORMAL', NORMAL: 'HARD', HARD: 'IMPOSSIBLE' };
+const DIFF_COLOR = { BEGINNER: '#5dffb0', EASY: '#ffa028', NORMAL: '#ff4d6a', HARD: '#d65cff' };
+let diffIdx = DIFFS.indexOf('EASY'); // shown as NORMAL
 // Daily challenge: ?daily=2026-11-15&track=blackice&diff=HARD (Pixo picks them from the date, the
 // same for every player). The title screen locks that track and difficulty; speed and timing
 // offset stay yours. Results still count for your own bests.
@@ -59,8 +64,8 @@ function loadBest(d) { try { return JSON.parse(localStorage.getItem(bestKey(d)))
 function saveBest(d, v) { try { localStorage.setItem(bestKey(d), JSON.stringify(v)); } catch (e) { } }
 function refreshTitle() {
   if (DAILY) { if (songIdx !== DAILY.song) setSong(DAILY.song); diffIdx = DAILY.diff; } // the challenge is fixed
-  const d = DIFFS[diffIdx], dc = { EASY: '#5dffb0', NORMAL: '#ffa028', HARD: '#ff4d6a' }[d];
-  $('diffName').textContent = d; $('diffName').style.color = dc; $('diffName').style.textShadow = `0 0 10px ${dc}`;
+  const d = DIFFS[diffIdx], dc = DIFF_COLOR[d];
+  $('diffName').textContent = DIFF_LABEL[d]; $('diffName').style.color = dc; $('diffName').style.textShadow = `0 0 10px ${dc}`;
   $('tNum').textContent = DAILY ? `DAILY CHALLENGE · ${DAILY.day}` : `TRACK ${String(songIdx + 1).padStart(2, '0')} / ${String(SONGS.length).padStart(2, '0')}`;
   $('tNum').classList.toggle('daily', !!DAILY);
   for (const id of ['tPrev', 'tNext', 'dPrev', 'dNext', 'importBtn', 'tDots']) $(id).style.visibility = DAILY ? 'hidden' : '';
@@ -105,6 +110,25 @@ function wake() { if (state === 'title' && !preview) startPreview(); } // first 
 addEventListener('pointerdown', wake); addEventListener('keydown', wake);
 
 let testing = null; // { from: song time } while test-playing from the editor
+// BEGINNER (shown as EASY): the EASY chart thinned out to one note at a time (no chords), at least
+// a beat apart (never closer than .6 s on fast songs). Holds stay but last at most a beat (.5 s on
+// fast songs) and let go at least half a beat (.35 s) before the next note, so there's time to move
+// lanes; a hold that would be shorter than .3 s becomes a tap. Wider hit windows are set in startGame.
+function beginnerChart(src) {
+  const gap = Math.max(SPB, .6), maxHold = Math.max(SPB, .5), rest = Math.max(SPB / 2, .35), out = [];
+  for (const n of src) {
+    const prev = out[out.length - 1];
+    if (prev && n.t - prev.t < gap - .002) continue;
+    if (prev && prev.hold) {
+      prev.endT = Math.min(prev.endT, n.t - rest);
+      if (prev.endT - prev.t < .3) { prev.endT = prev.t; prev.hold = false; }
+    }
+    const endT = n.hold ? Math.min(n.endT, n.t + maxHold) : n.t;
+    out.push({ t: n.t, endT, lane: n.lane, hold: endT - n.t >= .3 });
+    if (!out[out.length - 1].hold) out[out.length - 1].endT = n.t;
+  }
+  return out;
+}
 function startGame() {
   if (!testing && SONG.custom && !SONG.notes.length) { openEditor(SONG, songIdx); return; } // nothing to play yet
   preview = null;
@@ -113,9 +137,11 @@ function startGame() {
   A.newRun();
   latency = (A.ctx.baseLatency || 0) + (A.ctx.outputLatency || 0);
   const diff = testing ? 'NORMAL' : DIFFS[diffIdx];
-  const src = CHART.filter(n => diff === 'EASY' ? n.easy : diff === 'NORMAL' ? !n.hard : true).map(n => ({ t: n.beat * SPB, endT: (n.beat + n.dur) * SPB, lane: n.lane, hold: n.dur > 0 }))
+  let src = CHART.filter(n => diff === 'BEGINNER' || diff === 'EASY' ? n.easy : diff === 'NORMAL' ? !n.hard : true).map(n => ({ t: n.beat * SPB, endT: (n.beat + n.dur) * SPB, lane: n.lane, hold: n.dur > 0 }))
     .filter(n => !testing || n.t >= testing.from - .01)
     .sort((a, b) => a.t - b.t || a.lane - b.lane);
+  if (diff === 'BEGINNER') src = beginnerChart(src);
+  Object.assign(WIN, diff === 'BEGINNER' ? WIN_BEGINNER : WIN_STD);
   const busy = [-9, -9, -9, -9];
   notes = []; laneNotes = [[], [], [], []];
   for (const n of src) { if (n.t < busy[n.lane] + .09) continue; busy[n.lane] = n.endT; notes.push(n); laneNotes[n.lane].push(n); }
@@ -179,7 +205,7 @@ function finish() {
   const acc = judgeable ? accSum / judgeable * 100 : 0, accR = Math.round(acc * 10) / 10;
   const grade = acc >= 95 ? 'S' : acc >= 90 ? 'A' : acc >= 80 ? 'B' : acc >= 70 ? 'C' : 'D';
   score = Math.round(score);
-  $('rDiff').textContent = DIFFS[diffIdx] + (DAILY ? ' · DAILY' : ''); $('rSong').textContent = SONG.title;
+  $('rDiff').textContent = DIFF_LABEL[DIFFS[diffIdx]] + (DAILY ? ' · DAILY' : ''); $('rSong').textContent = SONG.title;
   animateResults({ score, p: counts.p, g: counts.g, o: counts.o, m: counts.m, acc: accR, mc: maxCombo }, grade);
   drawHist(allHits);
   const best = loadBest(DIFFS[diffIdx]), isBest = !best || score > best.score;

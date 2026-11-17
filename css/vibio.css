@@ -16,7 +16,7 @@ html,body{margin:0;height:100%;background:var(--bg);overflow:hidden;color:#cfeff
 .diff{display:flex;align-items:center;justify-content:center;gap:16px;margin:14px 0 8px}
 .diff button{background:none;border:1px solid rgba(0,234,255,.5);color:var(--cyan);width:34px;height:30px;font-size:14px;cursor:pointer;font-family:Orbitron}
 .diff button:hover{background:rgba(0,234,255,.15);box-shadow:0 0 12px rgba(0,234,255,.6)}
-#speedName{font-family:Orbitron;font-weight:700;font-size:14px;letter-spacing:.2em;width:130px;color:var(--cyan);text-shadow:0 0 10px rgba(0,234,255,.7)}
+#speedName{font-family:Orbitron;font-weight:700;font-size:14px;letter-spacing:.2em;width:175px;color:var(--cyan);text-shadow:0 0 10px rgba(0,234,255,.7)}
 .diff.sp{margin-top:0}
 .tsel{display:flex;align-items:center;justify-content:center;gap:16px}
 .tsel button{background:none;border:1px solid rgba(0,234,255,.45);color:var(--cyan);width:34px;height:58px;font-size:14px;cursor:pointer}
@@ -30,7 +30,7 @@ html,body{margin:0;height:100%;background:var(--bg);overflow:hidden;color:#cfeff
 .grade.stamp{animation:stamp .5s cubic-bezier(.2,1.5,.4,1) both}
 @keyframes stamp{0%{transform:scale(2.8);opacity:0;filter:brightness(3)}100%{transform:scale(1);opacity:1;filter:brightness(1)}}
 #hist{width:320px;height:96px;max-width:88vw}
-#diffName{font-family:Orbitron;font-weight:700;letter-spacing:.3em;width:130px;color:var(--orange);text-shadow:0 0 10px rgba(255,160,40,.8)}
+#diffName{font-family:Orbitron;font-weight:700;letter-spacing:.3em;width:175px;color:var(--orange);text-shadow:0 0 10px rgba(255,160,40,.8)}
 .cta{font-family:Orbitron;font-weight:700;font-size:18px;letter-spacing:.5em;padding:14px 40px 14px 48px;color:#001018;background:var(--cyan);border:none;cursor:pointer;box-shadow:0 0 18px rgba(0,234,255,.9),0 0 60px rgba(0,234,255,.45);animation:pulse 1.875s ease-in-out infinite;clip-path:polygon(12px 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%,0 12px)}
 .cta.alt{background:none;color:var(--cyan);border:1px solid var(--cyan);box-shadow:0 0 14px rgba(0,234,255,.4);animation:none}
 @keyframes pulse{0%,100%{filter:brightness(1)}50%{filter:brightness(1.35)}}
