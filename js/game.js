@@ -151,7 +151,7 @@ function startGame() {
   judgeable = notes.reduce((s, n) => s + (n.hold ? 2 : 1), 0);
   lanePtr = [0, 0, 0, 0]; activeHold = [null, null, null, null]; held = [false, false, false, false];
   resolved = 0; score = 0; combo = 0; maxCombo = 0; accSum = 0; counts = { p: 0, g: 0, o: 0, m: 0 };
-  judgeText = null; particles = []; rings = []; cycles = []; lastBar = -99;
+  judgeText = null; particles = []; rings = []; laneWaves = []; chips = []; heat = 0; cycles = []; lastBar = -99;
   fever = false; feverT = 0; banner = null; hitLog = []; allHits = []; punch = dropBoost = flare = powerFx = palT = 0;
   if (document.activeElement) document.activeElement.blur(); // so SPACE can't re-trigger a hidden button
   evIdx = 0; startTime = A.ctx.currentTime + (testing ? 1.5 - testing.from : LEAD_IN);

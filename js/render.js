@@ -94,7 +94,7 @@ function drawText(txt, x, y, font, fill, shadow, blur, core = 0, a = 1, align = 
   g.globalAlpha = Math.min(1, a); g.drawImage(s.c, x - s.ax, y - s.ay, s.w, s.h); g.globalAlpha = 1;
 }
 
-let W, H, DPR, cx, horY, hitY, roadW, laneW, dBottom;
+let W, H, DPR, cx, horY, hitY, roadW, laneW, dBottom, roadW0 = 0; // roadW0: full width; the build narrows roadW a little
 // phones: notch / Dynamic Island / home bar insets (from the #safe probe, which is padded with env(safe-area-inset-*))
 const SAFE = { t: 0, r: 0, b: 0, l: 0 };
 const TOUCH = matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0 && !matchMedia('(pointer: fine)').matches;
@@ -126,7 +126,7 @@ function resize() {
   // on touch screens the hit line sits higher, clear of the home bar and the bottom edge where thumbs can't reach comfortably
   const usable = H - SAFE.b;
   cx = W / 2; hitY = TOUCH ? usable * (H > W ? .74 : .78) : H * .84;
-  roadW = Math.min(W * (TOUCH && H > W ? .92 : .78), H * .7, 620); laneW = roadW / 4; // wider lanes for thumbs on phones
+  roadW0 = roadW = Math.min(W * (TOUCH && H > W ? .92 : .78), H * .7, 620); laneW = roadW / 4; // wider lanes for thumbs on phones
   setHorizon(0);
 }
 function setHorizon(bob) {
@@ -495,7 +495,7 @@ function drawFloor(t, pulse, inten) {
 }
 function spawnCycle(t) {
   const side = Math.random() < .5 ? -1 : 1, k = 1 + Math.floor(Math.random() * 7);
-  cycles.push({ X: side * (roadW / 2 + k * laneW * 1.15), d0: 5, t0: t, v: 2.2 + Math.random() * 1.5, col: (side < 0 ? P : S).slice() });
+  cycles.push({ X: side * (roadW / 2 + k * laneW * 1.15), d0: 5, t0: t, v: (2.2 + Math.random() * 1.5) * (1 + tension * 1.2), col: (side < 0 ? P : S).slice() }); // faster as the build winds up
 }
 function spawnStreak(t) { // fever: fast short light streaks rushing past
   const side = Math.random() < .5 ? -1 : 1;
@@ -530,17 +530,20 @@ function drawRoad(t, pulse, inten, live) {
   }
   // lane dividers + edges
   for (let i = 1; i < 4; i++) {
-    g.strokeStyle = rgba(mix(P, WHITE, i === 2 ? .4 : 0), (i === 2 ? .35 : .2) + feverT * .35 * (.5 + .5 * pulse)); g.lineWidth = 1 + feverT;
+    g.strokeStyle = rgba(mix(P, WHITE, i === 2 ? .4 : 0), (i === 2 ? .35 : .2) + heat * .2 + feverT * .35 * (.5 + .5 * pulse)); g.lineWidth = 1 + feverT;
     g.beginPath(); tracePts(path(-half + laneW * i, ds)); g.stroke();
   }
-  const edgeA = Math.min(1, .65 + .35 * pulse * inten + feverT * .3 + dropBoost * .4);
+  const edgeA = Math.min(1, .65 + .35 * pulse * inten + heat * .15 + feverT * .3 + dropBoost * .4);
   const ew = 2.4 * (1 + feverT * .5 + dropBoost * 1.3), hot = Math.min(1, feverT * pulse * .55 + dropBoost * .5);
   glowPath(Lp, mix(P, WHITE, hot), ew, edgeA);
   glowPath(Rp, mix(S, WHITE, hot), ew, edgeA);
   // hit line
   const [hx1] = proj(-half, 0), [hx2] = proj(half, 0);
-  glowLine(hx1 - 8, hitY, hx2 + 8, hitY, [170, 240, 255], 2, .85 + .15 * pulse);
+  // the hit line heats up with the combo: ice blue, through the track colour, to white-hot
+  const hc = heat < .5 ? mix([170, 240, 255], mix(S, WHITE, .25), heat * 2) : mix(mix(S, WHITE, .25), [255, 250, 235], (heat - .5) * 2);
+  glowLine(hx1 - 8, hitY, hx2 + 8, hitY, hc, 2 + heat * 1.6 * (.7 + .3 * pulse), .85 + .15 * pulse);
   g.globalCompositeOperation = 'source-over';
+  drawLaneWaves();
 }
 
 function noteQuad(l, d, td, inset) {
@@ -714,8 +717,8 @@ function drawReceptors() {
   for (let l = 0; l < 4; l++) {
     const q = noteQuad(l, -.012, .024, .06), c = LC[l], p = pressFx[l];
     g.globalCompositeOperation = 'lighter';
-    poly(q); g.fillStyle = rgba(c, .08 + .35 * p); g.fill();
-    g.strokeStyle = rgba(c, .5 + .5 * p); g.lineWidth = 1.5; g.stroke();
+    poly(q); g.fillStyle = rgba(c, .08 + heat * .12 + .35 * p); g.fill();
+    g.strokeStyle = rgba(mix(c, WHITE, heat * .35), Math.min(1, .5 + heat * .25 + .5 * p)); g.lineWidth = 1.5 + heat; g.stroke();
     const f = flashFx[l];
     if (f > .01) { // vertical beam
       const xl = q[0][0], xr = q[1][0], top = hitY - H * .42 * f;
@@ -727,11 +730,33 @@ function drawReceptors() {
   }
 }
 
+// hit feedback: PERFECT (and a finished hold) sends a shockwave racing up the lane; every hit breaks the
+// note into glass chips that fly off up the road, shrinking as they go
+// heat: 0..1, the hit line and lanes warm up as the combo grows · tension: 0..1 across the build (see main.js)
+let laneWaves = [], chips = [], heat = 0, tension = 0;
 function hitFx(l, power) {
   const [x, y, s] = proj(laneX(l), 0), c = LC[l];
   flashFx[l] = 1;
   rings.push({ x, y, r: laneW * .25, life: 1, col: c });
   for (let i = 0; i < 16 * power * (1 + feverT * .7); i++) spark(x + (Math.random() - .5) * laneW * .6, y, c, 1.4 * power, 1);
+  if (power >= 1) laneWaves.push({ l, life: 1, col: c });
+  const n = (lite() ? 4 : 7) + (power >= 1 ? 2 : 0);
+  for (let i = 0; i < n; i++) {
+    const side = (Math.random() - .5) * 2;
+    chips.push({ x: x + side * laneW * .35, y: y - 2, vx: side * (90 + Math.random() * 160), vy: -(260 + Math.random() * 380) * (.7 + .3 * power), rot: Math.random() * 6, vr: (Math.random() - .5) * 16, sz: laneW * (.05 + Math.random() * .05), life: 1, col: Math.random() < .3 ? mix(c, WHITE, .6) : c });
+  }
+}
+function drawLaneWaves() { // a bright band racing from the hit line up the lane
+  if (!laneWaves.length) return;
+  g.globalCompositeOperation = 'lighter';
+  for (const w of laneWaves) {
+    const k = 1 - w.life, d = k * k * .3 + k * 1.1, a = w.life * w.life; // fast off the line, easing as it goes
+    const q = noteQuad(w.l, d, .035, 0), wk = noteQuad(w.l, Math.max(0, d - .3), Math.min(d, .3), 0); // thin front + a trail back to the line
+    const gr = g.createLinearGradient(0, wk[0][1], 0, wk[3][1]); gr.addColorStop(0, rgba(w.col, 0)); gr.addColorStop(1, rgba(w.col, .22 * a));
+    poly(wk); g.fillStyle = gr; g.fill();
+    poly(q); g.fillStyle = rgba(mix(w.col, WHITE, .5), .9 * a); g.fill();
+  }
+  g.globalCompositeOperation = 'source-over';
 }
 function spark(x, y, col, pow, life) {
   const a = -Math.PI / 2 + (Math.random() - .5) * 2.2, v = (120 + Math.random() * 380) * pow;
@@ -760,6 +785,19 @@ function drawFx(dt) {
     g.beginPath(); g.ellipse(r.x, r.y, r.r, r.r * .3, 0, 0, 7); g.stroke();
   }
   rings = rings.filter(r => r.life > 0);
+  let keep2 = 0;
+  for (const w of laneWaves) { w.life -= dt * 2.6; if (w.life > 0) laneWaves[keep2++] = w; }
+  laneWaves.length = keep2; keep2 = 0;
+  for (const p of chips) {
+    p.life -= dt * 2.4; if (p.life <= 0) continue;
+    chips[keep2++] = p;
+    p.vx *= .96; p.vy *= .965; p.x += p.vx * dt; p.y += p.vy * dt; p.rot += p.vr * dt; p.sz *= 1 - dt * 1.6; // flying away up the road
+    const c = Math.cos(p.rot) * p.sz, s = Math.sin(p.rot) * p.sz * .55;
+    poly([[p.x + c, p.y + s], [p.x - s, p.y + c * .55], [p.x - c, p.y - s], [p.x + s, p.y - c * .55]]);
+    g.fillStyle = rgba(p.col, .35 * p.life); g.fill();
+    g.strokeStyle = rgba(mix(p.col, WHITE, .5), p.life); g.lineWidth = 1.2; g.stroke();
+  }
+  chips.length = keep2;
   g.globalCompositeOperation = 'source-over';
   for (let l = 0; l < 4; l++) { flashFx[l] = Math.max(0, flashFx[l] - dt * 4); if (!held[l]) pressFx[l] = Math.max(0, pressFx[l] - dt * 6); }
 }
@@ -767,7 +805,20 @@ function drawFx(dt) {
 function glowText(txt, x, y, font, col, a, blur = 18, core = .6) {
   const c = rgba(col, 1); drawText(txt, x, y, font, c, c, blur, core, a);
 }
+// HUD motion: the score rolls up instead of jumping, the multiplier punches when it steps up, banners slam in
+const hud = { score: 0, scorePop: 0, mult: 1, multPop: 0 };
+// score digits: one cached glow sprite per digit in fixed-width cells, so a rolling score never makes new sprites
+function drawDigits(str, x, y, font, fill, shadow, blur, sc) {
+  g.font = font; let adv = 0; for (let i = 0; i < 10; i++) adv = Math.max(adv, g.measureText(String(i)).width);
+  g.save(); g.translate(x, y); g.scale(sc, sc);
+  for (let i = 0; i < str.length; i++) { const s = textSprite(str[i], font, fill, shadow, blur, 0, 'center', 'top'); g.drawImage(s.c, adv * (i + .5) - s.ax, -s.ay, s.w, s.h); }
+  g.restore();
+}
 function drawHUD(t) {
+  const now = performance.now(), dt = frameDt;
+  if (score < hud.score) hud.score = score; // new run
+  if (score > hud.score) { const gap = score - hud.score; hud.score += Math.max(gap * Math.min(1, dt * 9), Math.min(gap, 400 * dt)); hud.scorePop = Math.min(1, hud.scorePop + gap / 2000); }
+  hud.scorePop = Math.max(0, hud.scorePop - dt * 4); hud.multPop = Math.max(0, hud.multPop - dt * 2.5);
   // judgement
   if (judgeText) {
     const age = (performance.now() - judgeText.t) / 1000;
@@ -781,6 +832,9 @@ function drawHUD(t) {
     }
   }
   // combo
+  const m = mult();
+  if (m > hud.mult) hud.multPop = 1;
+  hud.mult = m;
   if (combo >= 5) {
     const y = horY + (hitY - horY) * .3;
     glowText(String(combo), cx, y, `900 ${Math.round(Math.min(72, W * .14))}px Orbitron, sans-serif`, [0, 230, 255], .55, 24);
@@ -788,12 +842,14 @@ function drawHUD(t) {
   }
   // score / acc / multiplier
   const hx = 20 + SAFE.l, hy = 18 + SAFE.t, rx = W - SAFE.r - 66;
-  drawText(Math.round(score).toString().padStart(7, '0'), hx, hy, '700 22px Orbitron, sans-serif', '#e8fdff', 'rgba(0,234,255,.8)', 12, 0, 1, 'left', 'top');
+  drawDigits(Math.round(hud.score).toString().padStart(7, '0'), hx, hy, '700 22px Orbitron, sans-serif', '#e8fdff', 'rgba(0,234,255,.8)', 12, 1 + .08 * hud.scorePop);
   g.font = '500 12px Orbitron, sans-serif'; g.textAlign = 'left'; g.textBaseline = 'top'; g.fillStyle = 'rgba(140,210,235,.85)';
   const acc = resolved ? accSum / resolved * 100 : 100;
   g.fillText(`ACC ${acc.toFixed(1)}%`, hx + 1, hy + 30);
-  const m = mult();
-  drawText('×' + m, rx, hy, '900 22px Orbitron, sans-serif', m > 1 ? '#ffb24a' : 'rgba(255,178,74,.4)', 'rgba(255,150,40,.9)', 12, 0, 1, 'right', 'top');
+  const mp = hud.multPop, ms = 1 + .7 * mp * mp; // the multiplier punches out when it steps up
+  g.save(); g.translate(rx, hy + 11); g.scale(ms, ms);
+  drawText('×' + m, 0, -11, '900 22px Orbitron, sans-serif', m > 1 ? '#ffb24a' : 'rgba(255,178,74,.4)', 'rgba(255,150,40,.9)', 12, 0, 1, 'right', 'top');
+  g.restore();
   if (feverT > .05) glowText('FEVER', rx - 26, hy + 38, '900 14px Orbitron, sans-serif', [255, 190, 90], feverT * (.65 + .35 * Math.sin(performance.now() / 80)), 14);
   // progress
   const prog = clamp(t / lastEnd, 0, 1), px1 = cx - roadW / 2, pw = roadW;
@@ -810,15 +866,27 @@ function drawHUD(t) {
   // banner (FEVER / combo milestones)
   if (banner) {
     const age = (performance.now() - banner.t) / 1000;
-    if (age < 1.4) {
-      const sc = 1 + .5 * Math.max(0, 1 - age / .15), a = age < 1 ? 1 : 1 - (age - 1) / .4;
-      g.save(); g.translate(cx, horY + (hitY - horY) * .12); g.scale(sc, sc);
+    if (age < 1.3) {
+      // slam: drops in from 3× size, lands at .12 s with a jolt and a small bounce, then stretches out sideways
+      let sx, sy, a;
+      if (age < .12) { const k = age / .12; sx = sy = 3 - 2 * k * k; a = k; }
+      else if (age < 1) { sx = sy = 1 - .1 * Math.sin(Math.PI * clamp((age - .12) / .2, 0, 1)) * Math.exp(-(age - .12) * 6); a = 1; }
+      else { const k = (age - 1) / .3; sx = 1 + 1.4 * k * k; sy = 1 - .7 * k; a = 1 - k; }
+      if (age >= .12 && !banner.hit) { banner.hit = true; shake = Math.max(shake, 5); }
+      const by = horY + (hitY - horY) * .12;
+      if (age >= .12 && age < .5) { // impact streaks either side
+        const k = (age - .12) / .38, w = Math.min(W * .45, 360) * (.4 + .6 * k);
+        g.globalCompositeOperation = 'lighter';
+        glowLine(cx - w, by, cx - w * .45, by, banner.col, 2, 1 - k); glowLine(cx + w * .45, by, cx + w, by, banner.col, 2, 1 - k);
+        g.globalCompositeOperation = 'source-over';
+      }
+      g.save(); g.translate(cx, by); g.scale(sx, sy);
       glowText(banner.text, 0, 0, `900 ${Math.round(Math.min(46, W * .085))}px Orbitron, sans-serif`, banner.col, a, 30);
       g.restore();
     } else banner = null;
   }
   // timing bar: where your recent hits landed (left = early, right = late)
-  const tbW = Math.min(180, roadW * .5), tbY = H - 14 - SAFE.b, now = performance.now(), hw = tbW / 2;
+  const tbW = Math.min(180, roadW * .5), tbY = H - 14 - SAFE.b, hw = tbW / 2;
   g.fillStyle = 'rgba(255,160,40,.3)'; g.fillRect(cx - hw, tbY - 1, tbW, 2);
   g.fillStyle = 'rgba(60,150,255,.55)'; g.fillRect(cx - hw * WIN.great / WIN.good, tbY - 1, tbW * WIN.great / WIN.good, 2);
   g.fillStyle = 'rgba(0,234,255,.9)'; g.fillRect(cx - hw * WIN.perfect / WIN.good, tbY - 1, tbW * WIN.perfect / WIN.good, 2);

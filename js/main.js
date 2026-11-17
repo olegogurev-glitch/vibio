@@ -2,6 +2,38 @@
 // Plain script (not a module) so index.html also works opened straight from disk; files share globals and load in order.
 'use strict';
 
+/* ---------- camera moves per section ---------- */
+// build: the camera sinks low and creeps in (horizon drops, view tightens) as the tension rises
+// drop: it snaps back up and wide on the downbeat · break: up high, with a slow drifting sway
+// fever: a gentle side-to-side tilt, one way and back every 2 bars
+// Zoom is about the middle of the hit line, so the receptors stay where they are; laneFromX undoes it for touch.
+const cam = { z: 1, y: 0, r: 0, k: 1 }; // zoom · horizon offset (px, + = lower camera) · roll (rad) · zoom as drawn
+function camUpdate(info, t, dt, live) {
+  let z = 1, y = 0, r = 0, rate = 1.4;
+  if (live) {
+    const s = info.s;
+    if (s === 'build') { const p = clamp((t / BAR - 4) / 8, 0, 1); z = 1 + .09 * p * p; y = H * .05 * p * p; }
+    else if (s === 'drop' || s === 'drop2') { y = -H * .02; rate = 5; } // fast: the snap out is the hit
+    else if (s === 'break') { y = -H * .05; r = Math.sin(t * .3 + 1) * .012; rate = .7; }
+    r += feverT * .022 * Math.sin(t * Math.PI / BAR);
+  }
+  const k = Math.min(1, dt * rate);
+  cam.z += (z - cam.z) * k; cam.y += (y - cam.y) * k; cam.r += (r - cam.r) * Math.min(1, dt * 2);
+  cam.k = cam.z * (1 + Math.abs(cam.r) * 1.3); // a little extra zoom while rolled, so no corner is left unpainted
+}
+
+/* ---------- build-up tension ---------- */
+// Through the build the world winds up: colour drains toward grey, the sky dims, the road narrows a
+// little and light cycles race past faster and thicker. On the drop it all snaps back at once.
+function buildProg(t) { // 0 → 1 across the current run of build bars (imported songs have their own sections)
+  const b = Math.floor(t / BAR); let s = b, e = b;
+  for (let i = 0; i < 64 && s > 0 && sectionOf(s - 1) === 'build'; i++) s--;
+  for (let i = 0; i < 64 && e < BARS - 1 && sectionOf(e + 1) === 'build'; i++) e++;
+  return clamp((t / BAR - s) / (e + 1 - s), 0, 1);
+}
+let roadK = 1;
+const grey = c => { const l = c[0] * .3 + c[1] * .59 + c[2] * .11; return [l, l, l]; };
+
 /* ---------- main loop ---------- */
 let lastNow = performance.now();
 function frame(now) {
@@ -39,20 +71,31 @@ function render(now) {
   // camera pitch: horizon rises and dips as the hills pass under you
   // fly-in: 1 = camera high above at song start, eases to 0 over FLY seconds
   const flyK = live ? clamp(1 - (t + LEAD_IN) / FLY, 0, 1) : 0, fly = flyK * flyK * (3 - 2 * flyK);
-  setHorizon(wave.amp * H * .03 * Math.cos(wave.phase + .6) - fly * H * .3);
+  tension = live && info.s === 'build' ? Math.pow(buildProg(t), 1.6) : 0; // grows mostly late; drops to 0 on the downbeat
+  roadK += ((1 - .08 * tension) - roadK) * Math.min(1, dt * 10);
+  roadW = roadW0 * roadK; laneW = roadW / 4;
+  camUpdate(info, t, dt, live);
+  setHorizon(wave.amp * H * .03 * Math.cos(wave.phase + .6) - fly * H * .3 + cam.y);
   bikeUpdate(dt, state === 'play' || state === 'pause', t);
   // fever / drop / palette envelopes
   feverT += ((fever && state === 'play' ? 1 : 0) - feverT) * Math.min(1, dt * 3);
   palT += ((live && info.s === 'drop2' ? 1 : 0) - palT) * Math.min(1, dt * .8);
   const pal = SONG.pal; P = mix(pal[0], pal[2], palT); S = mix(pal[1], pal[3], palT);
+  if (tension > 0) { P = mix(P, grey(P), tension * .7); S = mix(S, grey(S), tension * .7); } // lane colours stay: notes must read
+  const heatT = state === 'play' || state === 'pause' ? clamp(combo / 60, 0, 1) : 0; // warms up over 60 hits, cools fast on a miss
+  heat += (heatT - heat) * Math.min(1, dt * (heatT < heat ? 4 : 1.5));
   punch = Math.max(0, punch - dt * 1.8); dropBoost = Math.max(0, dropBoost - dt * .6);
   flare = Math.max(0, flare - dt * 1.2); powerFx = Math.max(0, powerFx - dt * 1.5);
   if (state === 'play' && feverT > .3 && Math.random() < feverT * .4) spawnStreak(t);
+  if (state === 'play' && tension > .05) { if (Math.random() < tension * dt * 4) spawnCycle(t); if (Math.random() < tension * tension * .22) spawnStreak(t); }
   g.save();
   if (shake > .1) { g.translate((Math.random() - .5) * shake, (Math.random() - .5) * shake); shake *= Math.pow(.02, dt); }
   if (punch > 0) { const z = 1 + .07 * punch * punch; g.translate(cx, horY); g.scale(z, z); g.translate(-cx, -horY); }
   if (fly > 0) { const z = 1 + fly * .45; g.translate(cx, H * .55); g.rotate(fly * .14); g.scale(z, z); g.translate(-cx, -H * .55); }
+  g.save(); // the camera moves the world, not the HUD
+  if (cam.k !== 1 || cam.r) { g.translate(cx, hitY); g.rotate(cam.r); g.scale(cam.k, cam.k); g.translate(-cx, -hitY); }
   drawSky(t, pulse, info.inten);
+  if (tension > .01) { g.fillStyle = `rgba(0,0,0,${tension * .45})`; g.fillRect(-W, -H, W * 3, horY + H); } // the sky dims
   drawFloor(t, pulse, info.inten);
   drawWeather(live, info.inten);
   drawRoad(t, pulse, info.inten, live);
@@ -61,6 +104,7 @@ function render(now) {
   drawBike(t, pulse, live ? clamp((t + .25) / .6, 0, 1) : 1, fly);
   drawReceptors();
   drawFx(dt);
+  g.restore();
   if (live) drawHUD(t);
   g.restore();
   bloom(.75 + feverT * .3 + dropBoost * .35 + flare * .2);
@@ -109,7 +153,7 @@ addEventListener('keyup', e => {
   const l = KEYMAP[e.code]; if (l !== undefined && state === 'play') release(l);
 });
 const touchLane = {};
-const laneFromX = x => clamp(Math.floor((x - (cx - roadW / 2)) / laneW), 0, 3);
+const laneFromX = x => clamp(Math.floor((cx + (x - cx) / cam.k - (cx - roadW / 2)) / laneW), 0, 3); // undo the camera zoom
 cv.addEventListener('touchstart', e => { e.preventDefault(); if (state !== 'play') return; for (const tc of e.changedTouches) { const l = laneFromX(tc.clientX); touchLane[tc.identifier] = l; press(l, evLag(e)); } }, { passive: false });
 const tEnd = e => { e.preventDefault(); for (const tc of e.changedTouches) { const l = touchLane[tc.identifier]; if (l !== undefined) { delete touchLane[tc.identifier]; if (state === 'play') release(l); } } };
 cv.addEventListener('touchend', tEnd, { passive: false }); cv.addEventListener('touchcancel', tEnd, { passive: false });
